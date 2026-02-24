@@ -70,7 +70,7 @@ def translate(
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": numbered_text},
         ],
-        response_format=TranslationResult,
+        text_format=TranslationResult,
         temperature=temperature,
     )
     parsed: TranslationResult = resp.output_parsed  # type: ignore[attr-defined]
