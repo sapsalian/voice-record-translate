@@ -8,6 +8,7 @@ import av
 from openai import OpenAI
 
 MAX_FILE_SIZE = 24 * 1024 * 1024  # 24 MB (Whisper 제한 25MB에서 1MB 여유)
+OVERLAP_SECS = 0.5  # 청크 경계 겹침 (단어 잘림 방지)
 
 
 @dataclass
@@ -75,7 +76,13 @@ def _split_audio(file_path: str) -> list[tuple[str, float]]:
         return [(file_path, 0.0)]
 
     with av.open(file_path) as container:
-        duration_secs = container.duration / 1_000_000  # AV_TIME_BASE = μs
+        audio0 = container.streams.audio[0]
+        if container.duration is not None:
+            duration_secs = container.duration / 1_000_000  # AV_TIME_BASE = μs
+        elif audio0.duration is not None:
+            duration_secs = float(audio0.duration * audio0.time_base)
+        else:
+            raise RuntimeError("Cannot determine audio duration")
 
     n_chunks = math.ceil(file_size / MAX_FILE_SIZE)
     chunk_duration = duration_secs / n_chunks
@@ -83,33 +90,47 @@ def _split_audio(file_path: str) -> list[tuple[str, float]]:
     chunks = []
     for i in range(n_chunks):
         start = i * chunk_duration
-        end = min((i + 1) * chunk_duration, duration_secs)
+        end = min((i + 1) * chunk_duration + OVERLAP_SECS, duration_secs)
 
         tmp = tempfile.NamedTemporaryFile(suffix=".m4a", delete=False)
         tmp.close()
 
         with av.open(file_path) as inp:
             audio = inp.streams.audio[0]
-            inp.seek(int(start * 1_000_000))  # AV_TIME_BASE (μs) 단위로 seek
+            rate = audio.codec_context.sample_rate or getattr(audio, "rate", 44100)
+            channels = audio.codec_context.channels or 1
+            layout_str = "mono" if channels == 1 else "stereo" if channels == 2 else f"{channels}c"
+            inp.seek(int(start * 1_000_000), any_frame=True, backward=True)
 
             with av.open(tmp.name, "w", format="mp4") as out:
-                out_stream = out.add_stream(template=audio)
-                start_pts: int | None = None
+                out_stream = out.add_stream("aac", rate=rate)
+                resampler = av.AudioResampler(
+                    format="fltp",
+                    layout=layout_str,
+                    rate=rate,
+                )
 
-                for packet in inp.demux(audio):
-                    if packet.pts is None:
+                for frame in inp.decode(audio):
+                    if frame.pts is None:
                         continue
-                    pts_secs = float(packet.pts * packet.time_base)
+                    pts_secs = float(frame.pts * frame.time_base)
+                    if pts_secs < start:
+                        continue
                     if pts_secs >= end:
                         break
-                    # 청크 시작을 pts=0으로 재조정 (Whisper가 0부터 타임스탬프 반환)
-                    if start_pts is None:
-                        start_pts = packet.pts
-                    packet.pts -= start_pts
-                    if packet.dts is not None:
-                        packet.dts -= start_pts
-                    packet.stream = out_stream
-                    out.mux(packet)
+                    frame.pts = None
+                    for out_frame in resampler.resample(frame):
+                        for pkt in out_stream.encode(out_frame):
+                            out.mux(pkt)
+
+                try:
+                    for out_frame in resampler.resample(None):
+                        for pkt in out_stream.encode(out_frame):
+                            out.mux(pkt)
+                except Exception:
+                    pass
+                for pkt in out_stream.encode(None):
+                    out.mux(pkt)
 
         chunks.append((tmp.name, start))
 

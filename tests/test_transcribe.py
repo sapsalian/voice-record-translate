@@ -1,7 +1,9 @@
+import wave
 from unittest.mock import MagicMock, patch, call
 from pathlib import Path
 import tempfile
 
+import av
 import pytest
 
 from vrt.transcribe import MAX_FILE_SIZE, Segment, _split_audio, transcribe
@@ -43,45 +45,70 @@ def test_split_audio_large_file_creates_chunks(tmp_path):
     mock_container = MagicMock()
     mock_container.__enter__ = MagicMock(return_value=mock_container)
     mock_container.__exit__ = MagicMock(return_value=False)
-    mock_container.duration = 3_600_000_000  # 3600μs → 3600초 (1시간)
+    mock_container.duration = 3_600_000_000  # 3600초 (1시간)
     mock_audio_stream = MagicMock()
-    mock_audio_stream.time_base = MagicMock()
     mock_container.streams.audio = [mock_audio_stream]
 
-    # 청크 파일 쓰기용 두 번째 mock
     mock_inp = MagicMock()
     mock_inp.__enter__ = MagicMock(return_value=mock_inp)
     mock_inp.__exit__ = MagicMock(return_value=False)
     mock_inp.streams.audio = [mock_audio_stream]
+    mock_inp.decode.return_value = []  # 프레임 없음 → 루프 즉시 종료
 
-    mock_pkt = MagicMock()
-    mock_pkt.pts = 100
-    float_tb = MagicMock()
-    float_tb.__float__ = MagicMock(return_value=9999.0)  # pts_secs >= end → 즉시 break
-    mock_pkt.time_base = float_tb
-    mock_pkt.dts = 100
-    mock_inp.demux.return_value = [mock_pkt]
+    mock_out_stream = MagicMock()
+    mock_out_stream.encode.return_value = []
 
     mock_out = MagicMock()
     mock_out.__enter__ = MagicMock(return_value=mock_out)
     mock_out.__exit__ = MagicMock(return_value=False)
+    mock_out.add_stream.return_value = mock_out_stream
+
+    mock_resampler = MagicMock()
+    mock_resampler.resample.return_value = []
 
     file_size = MAX_FILE_SIZE * 3 - 1  # 3개 청크 필요
     with patch("vrt.transcribe.os.path.getsize", return_value=file_size):
         with patch("vrt.transcribe.av.open", side_effect=[
-            mock_container,   # 첫 호출: duration 확인
+            mock_container,      # 첫 호출: duration 확인
             mock_inp, mock_out,  # 청크 1
             mock_inp, mock_out,  # 청크 2
             mock_inp, mock_out,  # 청크 3
         ]):
-            result = _split_audio(f)
+            with patch("vrt.transcribe.av.AudioResampler", return_value=mock_resampler):
+                result = _split_audio(f)
 
     assert len(result) == 3
-    # 오프셋은 chunk_duration 배수
     _, offset0 = result[0]
     _, offset1 = result[1]
     assert offset0 == 0.0
     assert offset1 > 0.0
+
+
+def test_split_audio_real_wav_file(tmp_path):
+    """실제 WAV 파일로 decode+encode(aac) 경로 검증."""
+    audio_path = tmp_path / "test.wav"
+    with wave.open(str(audio_path), "w") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(22050)
+        wf.writeframes(b"\x00" * 22050 * 3 * 2)  # 3초 silence
+
+    chunk_size = audio_path.stat().st_size // 2  # 절반으로 → 2청크 강제
+    with patch("vrt.transcribe.MAX_FILE_SIZE", chunk_size):
+        result = _split_audio(str(audio_path))
+
+    assert len(result) == 2
+    _, offset0 = result[0]
+    _, offset1 = result[1]
+    assert offset0 == 0.0
+    assert offset1 > 0.0
+
+    for chunk_path, _ in result:
+        p = Path(chunk_path)
+        assert p.exists() and p.stat().st_size > 0
+        with av.open(str(p)) as f:
+            assert len(f.streams.audio) > 0
+        p.unlink()
 
 
 # ── transcribe() ───────────────────────────────────────────────────────────────
