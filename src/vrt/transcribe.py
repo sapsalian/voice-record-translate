@@ -20,7 +20,7 @@ def transcribe(
     try:
         with open(file_path, "rb") as f:
             params = {
-                "model": "gpt-4o-transcribe",
+                "model": "whisper-1",
                 "file": f,
                 "response_format": "verbose_json",
                 "timestamp_granularities": ["segment"],
