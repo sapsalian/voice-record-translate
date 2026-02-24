@@ -137,8 +137,8 @@ def _call_api_chunk(
             for orig, trans in ctx.recent_pairs
         )
         context_block = (
-            f"\n[이전 대화 맥락]\n"
-            f"요약: {ctx.summary}\n\n"
+            f"\n[지금까지의 누적 대화 요약]\n"
+            f"{ctx.summary}\n\n"
             f"최근 번역 쌍 (참고용, 용어/어투 일관성 유지):\n{pairs_text}\n"
         )
 
@@ -153,7 +153,8 @@ def _call_api_chunk(
         f"- Each item: index (1-based line number), translated (translation of that line only).\n"
         f"- Do not merge or split lines.\n"
         f"- Keep meaning faithful and natural in the target language.\n"
-        f"- summary: 이 청크 대화 내용을 2~3문장으로 요약 (고유명사, 주요 주제 포함).\n"
+        f"- summary: 이전 누적 요약(있다면)과 이번 청크 내용을 합쳐 전체 대화의 누적 요약을 작성. "
+        f"고유명사(이름, 회사명, 지역명)와 주요 주제를 반드시 포함. 2~5문장.\n"
     )
 
     client = OpenAI(api_key=api_key)
