@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -7,101 +7,128 @@ from vrt.translate import (
     TranslationItem,
     TranslationResult,
     TranslatedSegment,
-    _validate_and_normalize,
+    _collect,
     translate,
 )
 
 
-# ── _validate_and_normalize 단위 테스트 ──────────────────────────────────────
+# ── _collect 단위 테스트 ──────────────────────────────────────────────────────
 
 def _items(*pairs):
-    """Helper: [(index, text), ...] → list[TranslationItem]"""
     return [TranslationItem(index=i, translated=t) for i, t in pairs]
 
 
-def test_validate_normalize_happy_path():
-    items = _items((1, "안녕하세요"), (2, "잘 지내세요"))
-    result = _validate_and_normalize(items, 2)
-    assert result == ["안녕하세요", "잘 지내세요"]
+def test_collect_happy_path():
+    result = _collect(_items((1, "안녕"), (2, "잘 지내")), 2)
+    assert result == {1: "안녕", 2: "잘 지내"}
 
 
-def test_validate_normalize_out_of_order():
-    # GPT가 순서를 바꿔 돌려줘도 index로 정렬
-    items = _items((2, "잘 지내세요"), (1, "안녕하세요"))
-    result = _validate_and_normalize(items, 2)
-    assert result == ["안녕하세요", "잘 지내세요"]
+def test_collect_out_of_order():
+    result = _collect(_items((2, "잘 지내"), (1, "안녕")), 2)
+    assert result == {1: "안녕", 2: "잘 지내"}
 
 
-def test_validate_normalize_wrong_count():
-    items = _items((1, "하나"))
-    with pytest.raises(ValueError, match="expected 2"):
-        _validate_and_normalize(items, 2)
+def test_collect_out_of_range_ignored():
+    result = _collect(_items((1, "하나"), (3, "범위초과")), 2)
+    assert result == {1: "하나"}
 
 
-def test_validate_normalize_duplicate_index():
-    items = _items((1, "하나"), (1, "중복"))
-    with pytest.raises(ValueError, match="Duplicate index 1"):
-        _validate_and_normalize(items, 2)
+def test_collect_duplicate_keeps_first():
+    result = _collect(_items((1, "첫번째"), (1, "중복")), 2)
+    assert result == {1: "첫번째"}
 
 
-def test_validate_normalize_out_of_range_index():
-    items = _items((1, "하나"), (3, "범위초과"))
-    with pytest.raises(ValueError, match="Invalid index 3"):
-        _validate_and_normalize(items, 2)
+def test_collect_empty_translation_ignored():
+    result = _collect(_items((1, "   "), (2, "이")), 2)
+    assert result == {2: "이"}
 
 
-def test_validate_normalize_empty_translation():
-    items = _items((1, "   "), (2, "이"))
-    with pytest.raises(ValueError, match="Empty translation at index 1"):
-        _validate_and_normalize(items, 2)
+def test_collect_partial_result():
+    result = _collect(_items((1, "하나")), 3)
+    assert result == {1: "하나"}
+    assert 2 not in result
+    assert 3 not in result
 
 
-# ── translate() 통합 테스트 (API mock) ──────────────────────────────────────
+# ── translate() 통합 테스트 (API mock) ───────────────────────────────────────
 
-def _mock_resp(items):
-    parsed = TranslationResult(items=[TranslationItem(index=i, translated=t) for i, t in items])
+def _make_resp(*pairs):
+    parsed = TranslationResult(items=[TranslationItem(index=i, translated=t) for i, t in pairs])
     resp = MagicMock()
     resp.output_parsed = parsed
     return resp
 
 
-def test_translate_returns_empty_for_no_segments():
-    result = translate([], "vi", "ko", "sk-fake")
-    assert result == []
+def _segments(*texts):
+    return [Segment(start=float(i), end=float(i + 1), text=t) for i, t in enumerate(texts)]
 
 
-def test_translate_happy_path():
-    segments = [
-        Segment(start=0.0, end=1.0, text="Xin chào."),
-        Segment(start=1.0, end=2.0, text="Bạn có khỏe không?"),
-    ]
+def test_translate_empty():
+    assert translate([], "vi", "ko", "sk-fake") == []
+
+
+def test_translate_success_no_retry():
+    segs = _segments("Xin chào.", "Bạn có khỏe không?")
 
     with patch("vrt.translate.OpenAI") as mock_openai:
-        mock_client = MagicMock()
-        mock_openai.return_value = mock_client
-        mock_client.responses.parse.return_value = _mock_resp(
-            [(1, "안녕하세요."), (2, "잘 지내세요?")]
-        )
+        client = MagicMock()
+        mock_openai.return_value = client
+        client.responses.parse.return_value = _make_resp((1, "안녕하세요."), (2, "잘 지내세요?"))
 
-        result = translate(segments, "vi", "ko", "sk-fake")
+        result = translate(segs, "vi", "ko", "sk-fake")
 
-    assert len(result) == 2
-    assert result[0].original == "Xin chào."
+    assert client.responses.parse.call_count == 1
     assert result[0].translated == "안녕하세요."
-    assert result[0].start == 0.0
     assert result[1].translated == "잘 지내세요?"
 
 
-def test_translate_raises_on_mismatch():
-    segments = [Segment(start=0.0, end=1.0, text="Hello")]
+def test_translate_retry_on_missing():
+    """1차에서 index 2가 누락 → 2차에서 index 2만 재전송 → 성공."""
+    segs = _segments("Xin chào.", "Bạn có khỏe không?")
 
     with patch("vrt.translate.OpenAI") as mock_openai:
-        mock_client = MagicMock()
-        mock_openai.return_value = mock_client
-        # API returns 2 items but we expect 1
-        mock_client.responses.parse.return_value = _mock_resp(
-            [(1, "안녕"), (2, "여분")]
-        )
+        client = MagicMock()
+        mock_openai.return_value = client
+        client.responses.parse.side_effect = [
+            _make_resp((1, "안녕하세요.")),          # 1차: index 2 누락
+            _make_resp((1, "잘 지내세요?")),          # 2차: 누락된 것만 재전송, index 1로 매핑됨
+        ]
 
-        with pytest.raises(ValueError, match="expected 1"):
-            translate(segments, "vi", "ko", "sk-fake")
+        result = translate(segs, "vi", "ko", "sk-fake")
+
+    assert client.responses.parse.call_count == 2
+    assert result[0].translated == "안녕하세요."
+    assert result[1].translated == "잘 지내세요?"
+
+
+def test_translate_raises_if_retry_also_fails():
+    """재시도 후에도 누락이 있으면 ValueError."""
+    segs = _segments("Xin chào.", "Bạn có khỏe không?")
+
+    with patch("vrt.translate.OpenAI") as mock_openai:
+        client = MagicMock()
+        mock_openai.return_value = client
+        client.responses.parse.side_effect = [
+            _make_resp((1, "안녕하세요.")),   # 1차: index 2 누락
+            _make_resp(),                     # 2차: 여전히 없음
+        ]
+
+        with pytest.raises(ValueError, match="번역 실패한 세그먼트 인덱스"):
+            translate(segs, "vi", "ko", "sk-fake")
+
+    assert client.responses.parse.call_count == 2
+
+
+def test_translate_timestamps_preserved():
+    segs = [Segment(start=1.5, end=3.0, text="Hello")]
+
+    with patch("vrt.translate.OpenAI") as mock_openai:
+        client = MagicMock()
+        mock_openai.return_value = client
+        client.responses.parse.return_value = _make_resp((1, "안녕"))
+
+        result = translate(segs, "en", "ko", "sk-fake")
+
+    assert result[0].start == 1.5
+    assert result[0].end == 3.0
+    assert result[0].original == "Hello"

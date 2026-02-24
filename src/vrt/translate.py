@@ -43,6 +43,45 @@ def translate(
     if not segments:
         return []
 
+    # 1차 시도: 전체 세그먼트
+    items = _call_api(segments, source_lang, target_lang, api_key, model, temperature)
+    collected = _collect(items, len(segments))
+
+    missing = [i for i in range(1, len(segments) + 1) if i not in collected]
+
+    # 2차 시도: 누락된 세그먼트만 재전송
+    if missing:
+        missing_segments = [segments[i - 1] for i in missing]
+        retry_items = _call_api(missing_segments, source_lang, target_lang, api_key, model, temperature)
+        retry_collected = _collect(retry_items, len(missing_segments))
+
+        for pos, orig_idx in enumerate(missing, 1):
+            if pos in retry_collected:
+                collected[orig_idx] = retry_collected[pos]
+
+        still_missing = [i for i in missing if i not in collected]
+        if still_missing:
+            raise ValueError(f"번역 실패한 세그먼트 인덱스: {still_missing}")
+
+    return [
+        TranslatedSegment(
+            start=seg.start,
+            end=seg.end,
+            original=seg.text,
+            translated=collected[i + 1],
+        )
+        for i, seg in enumerate(segments)
+    ]
+
+
+def _call_api(
+    segments: List[Segment],
+    source_lang: str,
+    target_lang: str,
+    api_key: str,
+    model: str,
+    temperature: float,
+) -> List[TranslationItem]:
     source_name = LANGUAGES.get(source_lang, source_lang)
     target_name = LANGUAGES.get(target_lang, target_lang)
     expected_n = len(segments)
@@ -75,42 +114,17 @@ def translate(
     )
     parsed: TranslationResult = resp.output_parsed  # type: ignore[attr-defined]
     if parsed is None:
-        raise ValueError("No structured output returned from translation.")
-    translated_lines = _validate_and_normalize(parsed.items, expected_n)
-
-    return [
-        TranslatedSegment(
-            start=seg.start,
-            end=seg.end,
-            original=seg.text,
-            translated=translated_lines[i],
-        )
-        for i, seg in enumerate(segments)
-    ]
+        return []
+    return parsed.items
 
 
-def _validate_and_normalize(items: List[TranslationItem], expected_n: int) -> List[str]:
-    if len(items) != expected_n:
-        raise ValueError(f"Translation returned {len(items)} items, expected {expected_n}")
-
-    out = [""] * expected_n
-    seen: set[int] = set()
-
+def _collect(items: List[TranslationItem], expected_n: int) -> dict[int, str]:
+    """유효한 번역 항목만 수집. {1-based index: translated text}"""
+    result: dict[int, str] = {}
     for it in items:
         idx = int(it.index)
-        if idx < 1 or idx > expected_n:
-            raise ValueError(f"Invalid index {idx}; expected 1..{expected_n}")
-        if idx in seen:
-            raise ValueError(f"Duplicate index {idx} in translation output")
-        seen.add(idx)
-
-        text = it.translated.strip()
-        if not text:
-            raise ValueError(f"Empty translation at index {idx}")
-        out[idx - 1] = text
-
-    for i, v in enumerate(out, 1):
-        if not v:
-            raise ValueError(f"Missing translation for index {i}")
-
-    return out
+        if 1 <= idx <= expected_n and idx not in result:
+            text = it.translated.strip()
+            if text:
+                result[idx] = text
+    return result
