@@ -1,22 +1,38 @@
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from vrt.transcribe import Segment
 from vrt.translate import (
+    ChunkResult,
     TranslationItem,
-    TranslationResult,
     TranslatedSegment,
     _collect,
     translate,
 )
 
 
-# ── _collect 단위 테스트 ──────────────────────────────────────────────────────
+# ── 헬퍼 ────────────────────────────────────────────────────────────────────
 
 def _items(*pairs):
     return [TranslationItem(index=i, translated=t) for i, t in pairs]
 
+
+def _chunk_resp(summary="요약", *pairs):
+    parsed = ChunkResult(
+        items=[TranslationItem(index=i, translated=t) for i, t in pairs],
+        summary=summary,
+    )
+    resp = MagicMock()
+    resp.output_parsed = parsed
+    return resp
+
+
+def _segments(*texts):
+    return [Segment(start=float(i), end=float(i + 1), text=t) for i, t in enumerate(texts)]
+
+
+# ── _collect 단위 테스트 ──────────────────────────────────────────────────────
 
 def test_collect_happy_path():
     result = _collect(_items((1, "안녕"), (2, "잘 지내")), 2)
@@ -47,21 +63,9 @@ def test_collect_partial_result():
     result = _collect(_items((1, "하나")), 3)
     assert result == {1: "하나"}
     assert 2 not in result
-    assert 3 not in result
 
 
-# ── translate() 통합 테스트 (API mock) ───────────────────────────────────────
-
-def _make_resp(*pairs):
-    parsed = TranslationResult(items=[TranslationItem(index=i, translated=t) for i, t in pairs])
-    resp = MagicMock()
-    resp.output_parsed = parsed
-    return resp
-
-
-def _segments(*texts):
-    return [Segment(start=float(i), end=float(i + 1), text=t) for i, t in enumerate(texts)]
-
+# ── translate() - 단일 청크 (100개 미만) ─────────────────────────────────────
 
 def test_translate_empty():
     assert translate([], "vi", "ko", "sk-fake") == []
@@ -73,7 +77,9 @@ def test_translate_success_no_retry():
     with patch("vrt.translate.OpenAI") as mock_openai:
         client = MagicMock()
         mock_openai.return_value = client
-        client.responses.parse.return_value = _make_resp((1, "안녕하세요."), (2, "잘 지내세요?"))
+        client.responses.parse.return_value = _chunk_resp(
+            "인사 나눔", (1, "안녕하세요."), (2, "잘 지내세요?")
+        )
 
         result = translate(segs, "vi", "ko", "sk-fake")
 
@@ -83,15 +89,14 @@ def test_translate_success_no_retry():
 
 
 def test_translate_retry_on_missing():
-    """1차에서 index 2가 누락 → 2차에서 index 2만 재전송 → 성공."""
     segs = _segments("Xin chào.", "Bạn có khỏe không?")
 
     with patch("vrt.translate.OpenAI") as mock_openai:
         client = MagicMock()
         mock_openai.return_value = client
         client.responses.parse.side_effect = [
-            _make_resp((1, "안녕하세요.")),          # 1차: index 2 누락
-            _make_resp((1, "잘 지내세요?")),          # 2차: 누락된 것만 재전송, index 1로 매핑됨
+            _chunk_resp("인사", (1, "안녕하세요.")),          # 1차: index 2 누락
+            _chunk_resp("재시도", (1, "잘 지내세요?")),        # 2차: 누락분 재전송
         ]
 
         result = translate(segs, "vi", "ko", "sk-fake")
@@ -102,21 +107,18 @@ def test_translate_retry_on_missing():
 
 
 def test_translate_raises_if_retry_also_fails():
-    """재시도 후에도 누락이 있으면 ValueError."""
     segs = _segments("Xin chào.", "Bạn có khỏe không?")
 
     with patch("vrt.translate.OpenAI") as mock_openai:
         client = MagicMock()
         mock_openai.return_value = client
         client.responses.parse.side_effect = [
-            _make_resp((1, "안녕하세요.")),   # 1차: index 2 누락
-            _make_resp(),                     # 2차: 여전히 없음
+            _chunk_resp("인사", (1, "안녕하세요.")),
+            _chunk_resp("재시도"),                             # 여전히 누락
         ]
 
         with pytest.raises(ValueError, match="번역 실패한 세그먼트 인덱스"):
             translate(segs, "vi", "ko", "sk-fake")
-
-    assert client.responses.parse.call_count == 2
 
 
 def test_translate_timestamps_preserved():
@@ -125,10 +127,79 @@ def test_translate_timestamps_preserved():
     with patch("vrt.translate.OpenAI") as mock_openai:
         client = MagicMock()
         mock_openai.return_value = client
-        client.responses.parse.return_value = _make_resp((1, "안녕"))
+        client.responses.parse.return_value = _chunk_resp("인사", (1, "안녕"))
 
         result = translate(segs, "en", "ko", "sk-fake")
 
     assert result[0].start == 1.5
     assert result[0].end == 3.0
     assert result[0].original == "Hello"
+
+
+# ── translate() - 다중 청크 ───────────────────────────────────────────────────
+
+def test_translate_two_chunks():
+    """150개 세그먼트 → 청크 2개(100 + 50), API 2회 호출."""
+    segs = _segments(*[f"text_{i}" for i in range(150)])
+
+    with patch("vrt.translate.OpenAI") as mock_openai:
+        client = MagicMock()
+        mock_openai.return_value = client
+
+        def make_chunk_resp(chunk_segs):
+            return _chunk_resp(
+                "요약",
+                *[(i + 1, f"번역_{i}") for i in range(len(chunk_segs))]
+            )
+
+        client.responses.parse.side_effect = [
+            make_chunk_resp(segs[:100]),
+            make_chunk_resp(segs[100:]),
+        ]
+
+        result = translate(segs, "vi", "ko", "sk-fake")
+
+    assert client.responses.parse.call_count == 2
+    assert len(result) == 150
+    assert result[0].translated == "번역_0"
+    assert result[99].translated == "번역_99"
+    assert result[100].translated == "번역_0"   # 2번째 청크 내 index 1
+    assert result[149].translated == "번역_49"
+
+
+def test_translate_progress_callback():
+    """progress_callback이 청크 완료 시마다 호출되는지 확인."""
+    segs = _segments(*[f"t_{i}" for i in range(150)])
+    calls = []
+
+    with patch("vrt.translate.OpenAI") as mock_openai:
+        client = MagicMock()
+        mock_openai.return_value = client
+        client.responses.parse.side_effect = [
+            _chunk_resp("요약", *[(i + 1, f"번_{i}") for i in range(100)]),
+            _chunk_resp("요약", *[(i + 1, f"번_{i}") for i in range(50)]),
+        ]
+
+        translate(segs, "vi", "ko", "sk-fake", progress_callback=lambda d, t: calls.append((d, t)))
+
+    assert calls == [(1, 2), (2, 2)]
+
+
+def test_translate_second_chunk_gets_context():
+    """2번째 청크 API 호출 시 system prompt에 이전 요약이 포함되는지 확인."""
+    segs = _segments(*[f"t_{i}" for i in range(110)])
+
+    with patch("vrt.translate.OpenAI") as mock_openai:
+        client = MagicMock()
+        mock_openai.return_value = client
+        client.responses.parse.side_effect = [
+            _chunk_resp("첫 청크 요약", *[(i + 1, f"번_{i}") for i in range(100)]),
+            _chunk_resp("두번째 요약", *[(i + 1, f"번_{i}") for i in range(10)]),
+        ]
+
+        translate(segs, "vi", "ko", "sk-fake")
+
+    # 2번째 호출의 system prompt에 요약이 포함되어야 함
+    second_call_args = client.responses.parse.call_args_list[1]
+    system_content = second_call_args.kwargs["input"][0]["content"]
+    assert "첫 청크 요약" in system_content

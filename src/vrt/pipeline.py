@@ -30,12 +30,18 @@ class ProcessingWorker(QThread):
                 self.error.emit("전사 결과가 없습니다.")
                 return
 
-            self.progress.emit("번역 중...", 50)
+            self.progress.emit("번역 중... (1/?청크)", 50)
+
+            def _on_chunk(done: int, total: int) -> None:
+                pct = 50 + int((done / total) * 40)
+                self.progress.emit(f"번역 중... ({done}/{total}청크)", pct)
+
             translated = translate(
                 segments,
                 source_lang=self.config.source_lang,
                 target_lang=self.config.target_lang,
                 api_key=self.config.api_key,
+                progress_callback=_on_chunk,
             )
 
             self.progress.emit("SRT 파일 생성 중...", 90)

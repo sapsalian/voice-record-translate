@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Annotated, List
+from typing import Annotated, Callable, List
 
 from openai import OpenAI
 from pydantic import BaseModel, Field
@@ -14,6 +14,9 @@ LANGUAGES = {
     "zh": "Chinese",
 }
 
+CHUNK_SIZE = 100
+CONTEXT_PAIRS = 10
+
 
 @dataclass
 class TranslatedSegment:
@@ -23,13 +26,20 @@ class TranslatedSegment:
     translated: str
 
 
+@dataclass
+class _ChunkCtx:
+    summary: str
+    recent_pairs: list[tuple[str, str]]  # (원문, 번역) 최근 CONTEXT_PAIRS쌍
+
+
 class TranslationItem(BaseModel):
     index: Annotated[int, Field(ge=1)]
     translated: Annotated[str, Field(min_length=1)]
 
 
-class TranslationResult(BaseModel):
-    items: List[TranslationItem] = Field(default_factory=list)
+class ChunkResult(BaseModel):
+    items: List[TranslationItem]
+    summary: str
 
 
 def translate(
@@ -39,22 +49,55 @@ def translate(
     api_key: str,
     model: str = "gpt-4.1",
     temperature: float = 0.3,
+    progress_callback: Callable[[int, int], None] | None = None,
 ) -> List[TranslatedSegment]:
     if not segments:
         return []
 
-    # 1차 시도: 전체 세그먼트
-    items = _call_api(segments, source_lang, target_lang, api_key, model, temperature)
-    collected = _collect(items, len(segments))
+    chunks = [segments[i:i + CHUNK_SIZE] for i in range(0, len(segments), CHUNK_SIZE)]
+    total_chunks = len(chunks)
+    all_collected: dict[int, str] = {}  # global 1-based index → translated
+    ctx: _ChunkCtx | None = None
 
-    missing = [i for i in range(1, len(segments) + 1) if i not in collected]
+    for chunk_idx, chunk in enumerate(chunks):
+        global_offset = chunk_idx * CHUNK_SIZE  # 이 청크의 첫 세그먼트의 global index (0-based)
 
-    # 2차 시도: 누락된 세그먼트만 재전송
+        collected, ctx = _translate_chunk(chunk, source_lang, target_lang, api_key, model, temperature, ctx)
+
+        for local_idx, text in collected.items():
+            all_collected[global_offset + local_idx] = text  # 1-based global key
+
+        if progress_callback:
+            progress_callback(chunk_idx + 1, total_chunks)
+
+    return [
+        TranslatedSegment(
+            start=seg.start,
+            end=seg.end,
+            original=seg.text,
+            translated=all_collected[i + 1],  # 1-based
+        )
+        for i, seg in enumerate(segments)
+    ]
+
+
+def _translate_chunk(
+    chunk: List[Segment],
+    source_lang: str,
+    target_lang: str,
+    api_key: str,
+    model: str,
+    temperature: float,
+    ctx: _ChunkCtx | None,
+) -> tuple["_ChunkCtx", dict[int, str]]:
+    result = _call_api_chunk(chunk, source_lang, target_lang, api_key, model, temperature, ctx)
+    collected = _collect(result.items, len(chunk))
+
+    missing = [i for i in range(1, len(chunk) + 1) if i not in collected]
     if missing:
-        missing_segments = [segments[i - 1] for i in missing]
-        retry_items = _call_api(missing_segments, source_lang, target_lang, api_key, model, temperature)
-        retry_collected = _collect(retry_items, len(missing_segments))
-
+        missing_segs = [chunk[i - 1] for i in missing]
+        retry = _call_api_chunk(missing_segs, source_lang, target_lang, api_key, model, temperature, ctx=None)
+        retry_collected = _collect(retry.items, len(missing_segs))
         for pos, orig_idx in enumerate(missing, 1):
             if pos in retry_collected:
                 collected[orig_idx] = retry_collected[pos]
@@ -63,43 +106,54 @@ def translate(
         if still_missing:
             raise ValueError(f"번역 실패한 세그먼트 인덱스: {still_missing}")
 
-    return [
-        TranslatedSegment(
-            start=seg.start,
-            end=seg.end,
-            original=seg.text,
-            translated=collected[i + 1],
-        )
-        for i, seg in enumerate(segments)
-    ]
+    # 다음 청크를 위한 컨텍스트 구성
+    pairs = [(chunk[i - 1].text, collected[i]) for i in sorted(collected)]
+    new_ctx = _ChunkCtx(
+        summary=result.summary,
+        recent_pairs=pairs[-CONTEXT_PAIRS:],
+    )
+    return collected, new_ctx
 
 
-def _call_api(
+def _call_api_chunk(
     segments: List[Segment],
     source_lang: str,
     target_lang: str,
     api_key: str,
     model: str,
     temperature: float,
-) -> List[TranslationItem]:
+    ctx: _ChunkCtx | None,
+) -> ChunkResult:
     source_name = LANGUAGES.get(source_lang, source_lang)
     target_name = LANGUAGES.get(target_lang, target_lang)
     expected_n = len(segments)
 
     numbered_text = "\n".join(f"{i}: {seg.text}" for i, seg in enumerate(segments, 1))
 
+    context_block = ""
+    if ctx:
+        pairs_text = "\n".join(
+            f"{source_lang}: {orig} → {target_lang}: {trans}"
+            for orig, trans in ctx.recent_pairs
+        )
+        context_block = (
+            f"\n[이전 대화 맥락]\n"
+            f"요약: {ctx.summary}\n\n"
+            f"최근 번역 쌍 (참고용, 용어/어투 일관성 유지):\n{pairs_text}\n"
+        )
+
     system_prompt = (
-        "You are a professional translator.\n"
+        f"{context_block}"
+        f"[번역 지시]\n"
+        f"You are a professional translator.\n"
         f"Translate from {source_name} to {target_name}.\n"
-        "You MUST return JSON that matches the provided schema.\n"
-        "Rules:\n"
+        f"You MUST return JSON that matches the provided schema.\n"
+        f"Rules:\n"
         f"- Return exactly {expected_n} items.\n"
-        "- Each item must contain:\n"
-        "  - index: the original 1-based line number\n"
-        "  - translated: the translation of that line only\n"
-        "- Do not merge lines. Do not split lines.\n"
-        "- Do not add commentary. Do not add extra keys.\n"
-        "- Keep meaning faithful and natural in the target language.\n"
+        f"- Each item: index (1-based line number), translated (translation of that line only).\n"
+        f"- Do not merge or split lines.\n"
+        f"- Keep meaning faithful and natural in the target language.\n"
+        f"- summary: 이 청크 대화 내용을 2~3문장으로 요약 (고유명사, 주요 주제 포함).\n"
     )
 
     client = OpenAI(api_key=api_key)
@@ -109,13 +163,13 @@ def _call_api(
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": numbered_text},
         ],
-        text_format=TranslationResult,
+        text_format=ChunkResult,
         temperature=temperature,
     )
-    parsed: TranslationResult = resp.output_parsed  # type: ignore[attr-defined]
+    parsed: ChunkResult = resp.output_parsed  # type: ignore[attr-defined]
     if parsed is None:
-        return []
-    return parsed.items
+        return ChunkResult(items=[], summary="")
+    return parsed
 
 
 def _collect(items: List[TranslationItem], expected_n: int) -> dict[int, str]:
