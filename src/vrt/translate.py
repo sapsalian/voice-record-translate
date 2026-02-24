@@ -50,32 +50,42 @@ def translate(
     model: str = "gpt-4.1",
     temperature: float = 0.3,
     progress_callback: Callable[[int, int], None] | None = None,
+    start_chunk: int = 0,
+    initial_ctx: "_ChunkCtx | None" = None,
+    initial_collected: "dict[int, str] | None" = None,
+    on_chunk_done: "Callable[[int, dict[int, str], _ChunkCtx], None] | None" = None,
 ) -> List[TranslatedSegment]:
     if not segments:
         return []
 
     chunks = [segments[i:i + CHUNK_SIZE] for i in range(0, len(segments), CHUNK_SIZE)]
     total_chunks = len(chunks)
-    all_collected: dict[int, str] = {}  # global 1-based index → translated
-    ctx: _ChunkCtx | None = None
+    all_collected: dict[int, str] = dict(initial_collected or {})
+    ctx: _ChunkCtx | None = initial_ctx
 
     for chunk_idx, chunk in enumerate(chunks):
-        global_offset = chunk_idx * CHUNK_SIZE  # 이 청크의 첫 세그먼트의 global index (0-based)
+        if chunk_idx < start_chunk:
+            continue
+
+        global_offset = chunk_idx * CHUNK_SIZE
 
         collected, ctx = _translate_chunk(chunk, source_lang, target_lang, api_key, model, temperature, ctx)
 
         for local_idx, text in collected.items():
-            all_collected[global_offset + local_idx] = text  # 1-based global key
+            all_collected[global_offset + local_idx] = text
 
         if progress_callback:
             progress_callback(chunk_idx + 1, total_chunks)
+
+        if on_chunk_done:
+            on_chunk_done(chunk_idx, all_collected, ctx)
 
     return [
         TranslatedSegment(
             start=seg.start,
             end=seg.end,
             original=seg.text,
-            translated=all_collected[i + 1],  # 1-based
+            translated=all_collected.get(i + 1, seg.text),
         )
         for i, seg in enumerate(segments)
     ]
@@ -103,8 +113,8 @@ def _translate_chunk(
                 collected[orig_idx] = retry_collected[pos]
 
         still_missing = [i for i in missing if i not in collected]
-        if still_missing:
-            raise ValueError(f"번역 실패한 세그먼트 인덱스: {still_missing}")
+        for idx in still_missing:
+            collected[idx] = f"[번역실패] {chunk[idx - 1].text}"
 
     # 다음 청크를 위한 컨텍스트 구성
     pairs = [(chunk[i - 1].text, collected[i]) for i in sorted(collected)]

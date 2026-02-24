@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ..checkpoint import load_checkpoint
 from ..config import Config
 from ..pipeline import ProcessingWorker
 from .settings_dialog import SettingsDialog
@@ -87,8 +88,13 @@ class MainWindow(QMainWindow):
         if path:
             self.selected_file = path
             self._file_label.setText(Path(path).name)
+            cp = load_checkpoint(path)
+            if cp and cp.source_lang == self.config.source_lang and cp.target_lang == self.config.target_lang:
+                self._status_label.setText("이전 작업이 감지되었습니다. 이어서 진행합니다.")
+            else:
+                self._status_label.setText("준비")
 
-    def _start(self) -> None:
+    def _start(self, reset: bool = False) -> None:
         if not self.selected_file:
             QMessageBox.warning(self, "오류", "파일을 먼저 선택해주세요.")
             return
@@ -99,7 +105,7 @@ class MainWindow(QMainWindow):
         self._set_controls_enabled(False)
         self._progress.setValue(0)
 
-        self.worker = ProcessingWorker(self.selected_file, self.config)
+        self.worker = ProcessingWorker(self.selected_file, self.config, reset=reset)
         self.worker.progress.connect(self._on_progress)
         self.worker.finished.connect(self._on_finished)
         self.worker.error.connect(self._on_error)
@@ -121,7 +127,21 @@ class MainWindow(QMainWindow):
     def _on_error(self, message: str) -> None:
         self._set_controls_enabled(True)
         self._status_label.setText("오류 발생")
-        QMessageBox.critical(self, "오류", message)
+
+        dlg = QMessageBox(self)
+        dlg.setIcon(QMessageBox.Icon.Critical)
+        dlg.setWindowTitle("오류")
+        dlg.setText(message)
+        retry_btn = dlg.addButton("재시도", QMessageBox.ButtonRole.AcceptRole)
+        reset_btn = dlg.addButton("처음부터", QMessageBox.ButtonRole.DestructiveRole)
+        dlg.addButton("닫기", QMessageBox.ButtonRole.RejectRole)
+        dlg.exec()
+
+        clicked = dlg.clickedButton()
+        if clicked == retry_btn:
+            self._start(reset=False)
+        elif clicked == reset_btn:
+            self._start(reset=True)
 
     def _set_controls_enabled(self, enabled: bool) -> None:
         self._select_btn.setEnabled(enabled)
