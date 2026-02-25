@@ -24,10 +24,15 @@ class SettingsDialog(QDialog):
 
         form = QFormLayout()
 
-        self._api_key_input = QLineEdit(self.config.api_key)
-        self._api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self._api_key_input.setPlaceholderText("sk-...")
-        form.addRow("OpenAI API Key:", self._api_key_input)
+        self._openai_key_input = QLineEdit(self.config.openai_api_key)
+        self._openai_key_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self._openai_key_input.setPlaceholderText("sk-...")
+        form.addRow("OpenAI API Key (번역용):", self._openai_key_input)
+
+        self._soniox_key_input = QLineEdit(self.config.soniox_api_key)
+        self._soniox_key_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self._soniox_key_input.setPlaceholderText("soniox-...")
+        form.addRow("Soniox API Key (전사용):", self._soniox_key_input)
 
         lang_codes = list(LANGUAGES.keys())
         lang_names = list(LANGUAGES.values())
@@ -59,7 +64,8 @@ class SettingsDialog(QDialog):
 
     def _save(self) -> None:
         lang_codes = list(LANGUAGES.keys())
-        self.config.api_key = self._api_key_input.text().strip()
+        self.config.openai_api_key = self._openai_key_input.text().strip()
+        self.config.soniox_api_key = self._soniox_key_input.text().strip()
         self.config.source_lang = lang_codes[self._source_combo.currentIndex()]
         self.config.target_lang = lang_codes[self._target_combo.currentIndex()]
         save_config(self.config)

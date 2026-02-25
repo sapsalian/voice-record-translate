@@ -1,5 +1,5 @@
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 CONFIG_DIR = Path.home() / ".vrt"
@@ -8,7 +8,8 @@ CONFIG_FILE = CONFIG_DIR / "config.json"
 
 @dataclass
 class Config:
-    api_key: str = ""
+    openai_api_key: str = ""
+    soniox_api_key: str = ""
     source_lang: str = "vi"
     target_lang: str = "ko"
 
@@ -17,6 +18,8 @@ def load_config() -> Config:
     if not CONFIG_FILE.exists():
         return Config()
     data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+    if "api_key" in data:
+        data["openai_api_key"] = data.pop("api_key")
     return Config(**{k: v for k, v in data.items() if k in Config.__dataclass_fields__})
 
 

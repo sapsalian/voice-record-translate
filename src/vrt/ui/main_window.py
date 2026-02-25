@@ -98,8 +98,8 @@ class MainWindow(QMainWindow):
         if not self.selected_file:
             QMessageBox.warning(self, "오류", "파일을 먼저 선택해주세요.")
             return
-        if not self.config.api_key:
-            QMessageBox.warning(self, "오류", "설정에서 OpenAI API Key를 입력해주세요.")
+        if not self.config.openai_api_key or not self.config.soniox_api_key:
+            QMessageBox.warning(self, "오류", "설정에서 OpenAI API Key와 Soniox API Key를 모두 입력해주세요.")
             return
 
         self._set_controls_enabled(False)
