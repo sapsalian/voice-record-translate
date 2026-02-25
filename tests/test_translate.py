@@ -245,3 +245,83 @@ def test_translate_on_chunk_done_called():
 
     assert calls[0] == (0, 100, "요약1")
     assert calls[1] == (1, 150, "요약2")
+
+
+# ── speaker 보존 ────────────────────────────────────────────────────────────
+
+def test_speaker_preserved_single_speaker():
+    """단일 화자 세그먼트 2개 → GPT가 1개로 병합해도 speaker 보존."""
+    from vrt.transcribe import Segment as Seg
+    segs = [
+        Seg(start=0.0, end=1.0, text="xin chào", speaker="1"),
+        Seg(start=1.0, end=2.0, text="bạn khỏe không", speaker="1"),
+    ]
+
+    with patch("vrt.translate.OpenAI") as mock_openai:
+        client = MagicMock()
+        mock_openai.return_value = client
+        client.responses.parse.return_value = _chunk_resp(
+            "요약",
+            _seg(0.0, 2.0, "xin chào bạn khỏe không", "안녕하세요 잘 지내세요"),
+        )
+        result = translate(segs, "vi", "ko", "sk-fake")
+
+    assert len(result) == 1
+    assert result[0].speaker == "1"
+
+
+def test_speaker_preserved_two_speakers():
+    """두 화자 세그먼트 → 각각 speaker 보존."""
+    from vrt.transcribe import Segment as Seg
+    segs = [
+        Seg(start=0.0, end=1.0, text="xin chào", speaker="1"),
+        Seg(start=1.5, end=2.5, text="cảm ơn", speaker="2"),
+    ]
+
+    with patch("vrt.translate.OpenAI") as mock_openai:
+        client = MagicMock()
+        mock_openai.return_value = client
+        client.responses.parse.return_value = _chunk_resp(
+            "요약",
+            _seg(0.0, 1.0, "xin chào", "안녕하세요"),
+            _seg(1.5, 2.5, "cảm ơn", "감사합니다"),
+        )
+        result = translate(segs, "vi", "ko", "sk-fake")
+
+    assert len(result) == 2
+    assert result[0].speaker == "1"
+    assert result[1].speaker == "2"
+
+
+def test_speaker_none_when_segment_speaker_is_none():
+    """speaker=None 세그먼트 → TranslatedSegment.speaker도 None."""
+    from vrt.transcribe import Segment as Seg
+    segs = [Seg(start=0.0, end=1.0, text="hello", speaker=None)]
+
+    with patch("vrt.translate.OpenAI") as mock_openai:
+        client = MagicMock()
+        mock_openai.return_value = client
+        client.responses.parse.return_value = _chunk_resp(
+            "요약",
+            _seg(0.0, 1.0, "hello", "안녕"),
+        )
+        result = translate(segs, "en", "ko", "sk-fake")
+
+    assert result[0].speaker is None
+
+
+def test_speaker_lookup_uses_closest_timestamp():
+    """GPT가 타임스탬프를 미세하게 바꿔도 0.5초 이내면 speaker 매핑."""
+    from vrt.transcribe import Segment as Seg
+    segs = [Seg(start=0.0, end=1.0, text="hello", speaker="1")]
+
+    with patch("vrt.translate.OpenAI") as mock_openai:
+        client = MagicMock()
+        mock_openai.return_value = client
+        client.responses.parse.return_value = _chunk_resp(
+            "요약",
+            _seg(0.3, 1.0, "hello", "안녕"),  # start가 0.3으로 미세하게 다름
+        )
+        result = translate(segs, "en", "ko", "sk-fake")
+
+    assert result[0].speaker == "1"

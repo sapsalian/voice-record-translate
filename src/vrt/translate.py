@@ -25,6 +25,7 @@ class TranslatedSegment:
     end: float
     original: str
     translated: str
+    speaker: str | None = None
 
 
 @dataclass
@@ -43,6 +44,16 @@ class CorrectedSegment(BaseModel):
 class CorrectionResult(BaseModel):
     segments: list[CorrectedSegment]
     summary: str
+
+
+def _lookup_speaker(start: float, speaker_map: dict) -> "str | None":
+    if start in speaker_map:
+        return speaker_map[start]
+    candidates = [(abs(s - start), sp) for s, sp in speaker_map.items()]
+    if not candidates:
+        return None
+    closest_diff, closest_speaker = min(candidates)
+    return closest_speaker if closest_diff <= 0.5 else None
 
 
 def _segment_to_dict(seg: Segment) -> dict:
@@ -89,12 +100,14 @@ def translate(
         if on_chunk_done:
             on_chunk_done(chunk_idx, all_corrected, ctx)
 
+    speaker_map = {seg.start: seg.speaker for seg in segments}
     return [
         TranslatedSegment(
             start=seg.start,
             end=seg.end,
             original=seg.corrected,
             translated=seg.translated,
+            speaker=_lookup_speaker(seg.start, speaker_map),
         )
         for seg in all_corrected
     ]

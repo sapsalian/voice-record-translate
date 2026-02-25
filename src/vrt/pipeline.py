@@ -5,6 +5,7 @@ from PyQt6.QtCore import QThread, pyqtSignal
 
 from .checkpoint import Checkpoint, delete_checkpoint, load_checkpoint, save_checkpoint
 from .config import Config
+from .session import create_session, save_session
 from .srt import write_srt
 from .transcribe import Segment, transcribe
 from .translate import CHUNK_SIZE, CorrectedSegment, _ChunkCtx, translate
@@ -22,6 +23,13 @@ class ProcessingWorker(QThread):
         self.reset = reset
 
     def run(self) -> None:
+        import os
+        session = create_session(
+            title=os.path.basename(self.file_path),
+            audio_src=self.file_path,
+            source_lang=self.config.source_lang,
+            target_lang=self.config.target_lang,
+        )
         try:
             # 체크포인트 로드 (reset=True면 삭제 후 무시)
             if self.reset:
@@ -112,8 +120,23 @@ class ProcessingWorker(QThread):
             )
 
             delete_checkpoint(self.file_path)
+
+            speaker_ids = sorted({s.speaker for s in translated if s.speaker})
+            session.speaker_names = {sid: f"화자 {i + 1}" for i, sid in enumerate(speaker_ids)}
+            session.segments = [
+                {"start": s.start, "end": s.end, "speaker": s.speaker,
+                 "original": s.original, "translated": s.translated}
+                for s in translated
+            ]
+            session.duration = translated[-1].end if translated else None
+            session.status = "completed"
+            save_session(session)
+
             self.progress.emit("완료", 100)
             self.finished.emit(original_path, translated_path)
 
         except Exception as e:
+            session.status = "failed"
+            session.error_message = str(e)
+            save_session(session)
             self.error.emit(str(e))
