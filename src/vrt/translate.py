@@ -1,8 +1,9 @@
+import json
 from dataclasses import dataclass
-from typing import Annotated, Callable, List
+from typing import Callable, List
 
 from openai import OpenAI
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from .transcribe import Segment
 
@@ -29,17 +30,29 @@ class TranslatedSegment:
 @dataclass
 class _ChunkCtx:
     summary: str
-    recent_pairs: list[tuple[str, str]]  # (원문, 번역) 최근 CONTEXT_PAIRS쌍
+    recent_pairs: list[tuple[str, str]]  # (교정된 원문, 번역) 최근 CONTEXT_PAIRS쌍
 
 
-class TranslationItem(BaseModel):
-    index: Annotated[int, Field(ge=1)]
-    translated: Annotated[str, Field(min_length=1)]
+class CorrectedSegment(BaseModel):
+    start: float
+    end: float
+    corrected: str   # 교정된 원문
+    translated: str  # 번역문
 
 
-class ChunkResult(BaseModel):
-    items: List[TranslationItem]
+class CorrectionResult(BaseModel):
+    segments: list[CorrectedSegment]
     summary: str
+
+
+def _segment_to_dict(seg: Segment) -> dict:
+    """Segment → API 전송용 dict. confidence 필드 포함 여부 변경 시 이 함수만 수정."""
+    d = {"start": seg.start, "end": seg.end, "text": seg.text}
+    if seg.no_speech_prob is not None:
+        d["no_speech_prob"] = round(seg.no_speech_prob, 3)
+    if seg.avg_logprob is not None:
+        d["avg_logprob"] = round(seg.avg_logprob, 3)
+    return d
 
 
 def translate(
@@ -47,47 +60,45 @@ def translate(
     source_lang: str,
     target_lang: str,
     api_key: str,
-    model: str = "gpt-4.1",
+    model: str = "gpt-4.1-mini",
     temperature: float = 0.3,
     progress_callback: Callable[[int, int], None] | None = None,
     start_chunk: int = 0,
     initial_ctx: "_ChunkCtx | None" = None,
-    initial_collected: "dict[int, str] | None" = None,
-    on_chunk_done: "Callable[[int, dict[int, str], _ChunkCtx], None] | None" = None,
+    initial_corrected: "list[CorrectedSegment] | None" = None,
+    on_chunk_done: "Callable[[int, list[CorrectedSegment], _ChunkCtx], None] | None" = None,
 ) -> List[TranslatedSegment]:
     if not segments:
         return []
 
     chunks = [segments[i:i + CHUNK_SIZE] for i in range(0, len(segments), CHUNK_SIZE)]
     total_chunks = len(chunks)
-    all_collected: dict[int, str] = dict(initial_collected or {})
+    all_corrected: list[CorrectedSegment] = list(initial_corrected or [])
     ctx: _ChunkCtx | None = initial_ctx
 
     for chunk_idx, chunk in enumerate(chunks):
         if chunk_idx < start_chunk:
             continue
 
-        global_offset = chunk_idx * CHUNK_SIZE
-
-        collected, ctx = _translate_chunk(chunk, source_lang, target_lang, api_key, model, temperature, ctx)
-
-        for local_idx, text in collected.items():
-            all_collected[global_offset + local_idx] = text
+        corrected_segs, ctx = _translate_chunk(
+            chunk, source_lang, target_lang, api_key, model, temperature, ctx
+        )
+        all_corrected.extend(corrected_segs)
 
         if progress_callback:
             progress_callback(chunk_idx + 1, total_chunks)
 
         if on_chunk_done:
-            on_chunk_done(chunk_idx, all_collected, ctx)
+            on_chunk_done(chunk_idx, all_corrected, ctx)
 
     return [
         TranslatedSegment(
             start=seg.start,
             end=seg.end,
-            original=seg.text,
-            translated=all_collected.get(i + 1, seg.text),
+            original=seg.corrected,
+            translated=seg.translated,
         )
-        for i, seg in enumerate(segments)
+        for seg in all_corrected
     ]
 
 
@@ -99,30 +110,30 @@ def _translate_chunk(
     model: str,
     temperature: float,
     ctx: _ChunkCtx | None,
-) -> tuple["_ChunkCtx", dict[int, str]]:
+) -> tuple[list[CorrectedSegment], _ChunkCtx]:
     result = _call_api_chunk(chunk, source_lang, target_lang, api_key, model, temperature, ctx)
-    collected = _collect(result.items, len(chunk))
 
-    missing = [i for i in range(1, len(chunk) + 1) if i not in collected]
-    if missing:
-        missing_segs = [chunk[i - 1] for i in missing]
-        retry = _call_api_chunk(missing_segs, source_lang, target_lang, api_key, model, temperature, ctx=None)
-        retry_collected = _collect(retry.items, len(missing_segs))
-        for pos, orig_idx in enumerate(missing, 1):
-            if pos in retry_collected:
-                collected[orig_idx] = retry_collected[pos]
+    if not result.segments:
+        result = _call_api_chunk(chunk, source_lang, target_lang, api_key, model, temperature, ctx=None)
 
-        still_missing = [i for i in missing if i not in collected]
-        for idx in still_missing:
-            collected[idx] = f"[번역실패] {chunk[idx - 1].text}"
+    if not result.segments:
+        fallback = [
+            CorrectedSegment(
+                start=seg.start,
+                end=seg.end,
+                corrected=seg.text,
+                translated=f"[번역실패] {seg.text}",
+            )
+            for seg in chunk
+        ]
+        return fallback, _ChunkCtx(summary=result.summary or "", recent_pairs=[])
 
-    # 다음 청크를 위한 컨텍스트 구성
-    pairs = [(chunk[i - 1].text, collected[i]) for i in sorted(collected)]
+    pairs = [(seg.corrected, seg.translated) for seg in result.segments]
     new_ctx = _ChunkCtx(
         summary=result.summary,
         recent_pairs=pairs[-CONTEXT_PAIRS:],
     )
-    return collected, new_ctx
+    return result.segments, new_ctx
 
 
 def _call_api_chunk(
@@ -133,12 +144,11 @@ def _call_api_chunk(
     model: str,
     temperature: float,
     ctx: _ChunkCtx | None,
-) -> ChunkResult:
+) -> CorrectionResult:
     source_name = LANGUAGES.get(source_lang, source_lang)
     target_name = LANGUAGES.get(target_lang, target_lang)
-    expected_n = len(segments)
 
-    numbered_text = "\n".join(f"{i}: {seg.text}" for i, seg in enumerate(segments, 1))
+    segments_json = json.dumps([_segment_to_dict(s) for s in segments], ensure_ascii=False)
 
     context_block = ""
     if ctx:
@@ -154,15 +164,19 @@ def _call_api_chunk(
 
     system_prompt = (
         f"{context_block}"
-        f"[번역 지시]\n"
-        f"You are a professional translator.\n"
-        f"Translate from {source_name} to {target_name}.\n"
+        f"[교정 및 번역 지시]\n"
+        f"You are a professional translator and transcription corrector.\n"
+        f"You will receive a JSON array of audio segments with start/end times and transcribed text.\n"
+        f"Correct the transcription and translate from {source_name} to {target_name}.\n"
         f"You MUST return JSON that matches the provided schema.\n"
         f"Rules:\n"
-        f"- Return exactly {expected_n} items.\n"
-        f"- Each item: index (1-based line number), translated (translation of that line only).\n"
-        f"- Do not merge or split lines.\n"
-        f"- Keep meaning faithful and natural in the target language.\n"
+        f"- Merge segments that are unnaturally split mid-sentence. "
+        f"Use the first segment's start and last segment's end for the merged segment.\n"
+        f"- Correct transcription errors (mishearing, wrong words) based on context.\n"
+        f"- no_speech_prob > 0.5 indicates likely silence/noise. Use context to decide.\n"
+        f"- start/end values must stay within the input range.\n"
+        f"- corrected: the corrected source text ({source_name}).\n"
+        f"- translated: the translation in {target_name}.\n"
         f"- summary: 이전 누적 요약(있다면)과 이번 청크 내용을 합쳐 전체 대화의 누적 요약을 작성. "
         f"고유명사(이름, 회사명, 지역명)와 주요 주제를 반드시 포함. 2~5문장.\n"
     )
@@ -172,24 +186,12 @@ def _call_api_chunk(
         model=model,
         input=[
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": numbered_text},
+            {"role": "user", "content": segments_json},
         ],
-        text_format=ChunkResult,
+        text_format=CorrectionResult,
         temperature=temperature,
     )
-    parsed: ChunkResult = resp.output_parsed  # type: ignore[attr-defined]
+    parsed: CorrectionResult = resp.output_parsed  # type: ignore[attr-defined]
     if parsed is None:
-        return ChunkResult(items=[], summary="")
+        return CorrectionResult(segments=[], summary="")
     return parsed
-
-
-def _collect(items: List[TranslationItem], expected_n: int) -> dict[int, str]:
-    """유효한 번역 항목만 수집. {1-based index: translated text}"""
-    result: dict[int, str] = {}
-    for it in items:
-        idx = int(it.index)
-        if 1 <= idx <= expected_n and idx not in result:
-            text = it.translated.strip()
-            if text:
-                result[idx] = text
-    return result
