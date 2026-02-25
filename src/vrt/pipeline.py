@@ -71,7 +71,13 @@ class ProcessingWorker(QThread):
 
             if cp and cp.last_chunk_done >= 0:
                 start_chunk = cp.last_chunk_done + 1
-                initial_corrected = [CorrectedSegment(**s) for s in cp.corrected_segments]
+                try:
+                    initial_corrected = [CorrectedSegment(**s) for s in cp.corrected_segments]
+                except Exception:
+                    # 구 형식 체크포인트 (start/end 기반) → 무시하고 처음부터
+                    start_chunk = 0
+                    initial_corrected = None
+                    cp = None
                 if cp.ctx_summary:
                     initial_ctx = _ChunkCtx(
                         summary=cp.ctx_summary,
