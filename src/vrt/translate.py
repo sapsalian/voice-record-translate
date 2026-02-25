@@ -46,12 +46,10 @@ class CorrectionResult(BaseModel):
 
 
 def _segment_to_dict(seg: Segment) -> dict:
-    """Segment → API 전송용 dict. confidence 필드 포함 여부 변경 시 이 함수만 수정."""
+    """Segment → API 전송용 dict."""
     d = {"start": seg.start, "end": seg.end, "text": seg.text}
-    if seg.no_speech_prob is not None:
-        d["no_speech_prob"] = round(seg.no_speech_prob, 3)
-    if seg.avg_logprob is not None:
-        d["avg_logprob"] = round(seg.avg_logprob, 3)
+    if seg.speaker is not None:
+        d["speaker"] = seg.speaker
     return d
 
 
@@ -60,7 +58,7 @@ def translate(
     source_lang: str,
     target_lang: str,
     api_key: str,
-    model: str = "gpt-4.1-mini",
+    model: str = "gpt-4.1",
     temperature: float = 0.3,
     progress_callback: Callable[[int, int], None] | None = None,
     start_chunk: int = 0,
@@ -166,14 +164,16 @@ def _call_api_chunk(
         f"{context_block}"
         f"[교정 및 번역 지시]\n"
         f"You are a professional translator and transcription corrector.\n"
+        f"The audio is a conversation between multiple speakers.\n"
         f"You will receive a JSON array of audio segments with start/end times and transcribed text.\n"
         f"Correct the transcription and translate from {source_name} to {target_name}.\n"
         f"You MUST return JSON that matches the provided schema.\n"
         f"Rules:\n"
-        f"- Merge segments that are unnaturally split mid-sentence. "
+        f"- Each segment has a 'speaker' field identifying the speaker. "
+        f"NEVER merge segments with different speaker values.\n"
+        f"- Within the same speaker, merge segments that are unnaturally split mid-sentence. "
         f"Use the first segment's start and last segment's end for the merged segment.\n"
         f"- Correct transcription errors (mishearing, wrong words) based on context.\n"
-        f"- no_speech_prob > 0.5 indicates likely silence/noise. Use context to decide.\n"
         f"- start/end values must stay within the input range.\n"
         f"- corrected: the corrected source text ({source_name}).\n"
         f"- translated: the translation in {target_name}.\n"

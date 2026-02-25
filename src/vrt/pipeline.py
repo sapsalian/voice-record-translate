@@ -33,12 +33,13 @@ class ProcessingWorker(QThread):
             # ── 전사 ──────────────────────────────────────────────────
             if cp and cp.segments is not None:
                 self.progress.emit("이전 전사 결과 불러오는 중...", 40)
-                segments = [Segment(**s) for s in cp.segments]
+                valid = Segment.__dataclass_fields__.keys()
+                segments = [Segment(**{k: v for k, v in s.items() if k in valid}) for s in cp.segments]
             else:
                 self.progress.emit("전사 중...", 0)
                 segments = transcribe(
                     self.file_path,
-                    api_key=self.config.api_key,
+                    api_key=self.config.soniox_api_key,
                     language=self.config.source_lang or None,
                 )
                 if not segments:
@@ -87,7 +88,7 @@ class ProcessingWorker(QThread):
                 segments,
                 source_lang=self.config.source_lang,
                 target_lang=self.config.target_lang,
-                api_key=self.config.api_key,
+                api_key=self.config.openai_api_key,
                 progress_callback=_on_progress,
                 start_chunk=start_chunk,
                 initial_ctx=initial_ctx,
