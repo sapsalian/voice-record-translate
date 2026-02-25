@@ -7,7 +7,7 @@ from .checkpoint import Checkpoint, delete_checkpoint, load_checkpoint, save_che
 from .config import Config
 from .srt import write_srt
 from .transcribe import Segment, transcribe
-from .translate import CHUNK_SIZE, _ChunkCtx, translate
+from .translate import CHUNK_SIZE, CorrectedSegment, _ChunkCtx, translate
 
 
 class ProcessingWorker(QThread):
@@ -58,11 +58,11 @@ class ProcessingWorker(QThread):
 
             start_chunk = 0
             initial_ctx: _ChunkCtx | None = None
-            initial_collected: dict[int, str] | None = None
+            initial_corrected: list[CorrectedSegment] | None = None
 
             if cp and cp.last_chunk_done >= 0:
                 start_chunk = cp.last_chunk_done + 1
-                initial_collected = {int(k): v for k, v in cp.translated_partial.items()}
+                initial_corrected = [CorrectedSegment(**s) for s in cp.corrected_segments]
                 if cp.ctx_summary:
                     initial_ctx = _ChunkCtx(
                         summary=cp.ctx_summary,
@@ -75,10 +75,10 @@ class ProcessingWorker(QThread):
                 pct = 50 + int((done / total) * 40)
                 self.progress.emit(f"번역 중... ({done}/{total}청크)", pct)
 
-            def _on_chunk_done(chunk_idx: int, all_collected: dict[int, str], ctx: _ChunkCtx) -> None:
+            def _on_chunk_done(chunk_idx: int, all_corrected: list[CorrectedSegment], ctx: _ChunkCtx) -> None:
                 assert cp is not None
                 cp.last_chunk_done = chunk_idx
-                cp.translated_partial = {str(k): v for k, v in all_collected.items()}
+                cp.corrected_segments = [s.model_dump() for s in all_corrected]
                 cp.ctx_summary = ctx.summary
                 cp.ctx_recent_pairs = [list(p) for p in ctx.recent_pairs]
                 save_checkpoint(cp)
@@ -91,7 +91,7 @@ class ProcessingWorker(QThread):
                 progress_callback=_on_progress,
                 start_chunk=start_chunk,
                 initial_ctx=initial_ctx,
-                initial_collected=initial_collected,
+                initial_corrected=initial_corrected,
                 on_chunk_done=_on_chunk_done,
             )
 

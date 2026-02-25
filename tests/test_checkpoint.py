@@ -23,12 +23,13 @@ def test_load_nonexistent(tmp_path):
 
 def test_save_load_roundtrip(tmp_path):
     f = str(tmp_path / "call.m4a")
+    corrected = [{"start": 0.0, "end": 1.0, "corrected": "xin chào", "translated": "안녕하세요"}]
     cp = Checkpoint(
         file_path=f,
         source_lang="vi",
         target_lang="ko",
         segments=[{"start": 0.0, "end": 1.0, "text": "xin chào"}],
-        translated_partial={"1": "안녕하세요"},
+        corrected_segments=corrected,
         last_chunk_done=0,
         ctx_summary="인사 나눔",
         ctx_recent_pairs=[["xin chào", "안녕하세요"]],
@@ -40,7 +41,7 @@ def test_save_load_roundtrip(tmp_path):
     assert loaded.file_path == f
     assert loaded.source_lang == "vi"
     assert loaded.segments == [{"start": 0.0, "end": 1.0, "text": "xin chào"}]
-    assert loaded.translated_partial == {"1": "안녕하세요"}
+    assert loaded.corrected_segments == corrected
     assert loaded.last_chunk_done == 0
     assert loaded.ctx_summary == "인사 나눔"
     assert loaded.ctx_recent_pairs == [["xin chào", "안녕하세요"]]

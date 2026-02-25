@@ -9,7 +9,7 @@ class Checkpoint:
     source_lang: str
     target_lang: str
     segments: list[dict] | None = None
-    translated_partial: dict[str, str] = field(default_factory=dict)
+    corrected_segments: list[dict] = field(default_factory=list)
     last_chunk_done: int = -1
     ctx_summary: str = ""
     ctx_recent_pairs: list[list[str]] = field(default_factory=list)
