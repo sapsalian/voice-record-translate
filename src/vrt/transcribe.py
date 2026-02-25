@@ -18,7 +18,6 @@ class Segment:
 def transcribe(
     file_path: str,
     api_key: str,
-    language: str | None = None,
 ) -> list[Segment]:
     client = SonioxClient(api_key=api_key)
     with open(file_path, "rb") as f:
@@ -26,7 +25,6 @@ def transcribe(
             file=f,
             filename=Path(file_path).name,
             config=CreateTranscriptionConfig(
-                language_hints=[language] if language else None,
                 enable_speaker_diarization=True,
             ),
         )

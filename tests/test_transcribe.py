@@ -110,7 +110,7 @@ def test_transcribe_returns_segments(tmp_path):
 
     with patch("vrt.transcribe.SonioxClient") as mock_cls:
         mock_cls.return_value = _mock_client(tokens)
-        result = transcribe(f, "sk-fake", language="vi")
+        result = transcribe(f, "sk-fake")
 
     assert len(result) == 2
     assert result[0].text == "xin chào"

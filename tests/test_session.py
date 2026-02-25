@@ -26,7 +26,7 @@ def _make_audio(tmp_path: Path, name: str = "test.m4a") -> str:
 
 def test_create_session_copies_audio(tmp_path):
     audio = _make_audio(tmp_path)
-    session = create_session("test.m4a", audio, "vi", "ko")
+    session = create_session("test.m4a", audio, "ko")
 
     session_dir = tmp_path / session.id
     assert (session_dir / session.audio_filename).exists()
@@ -34,13 +34,13 @@ def test_create_session_copies_audio(tmp_path):
 
 def test_create_session_initial_status_is_processing(tmp_path):
     audio = _make_audio(tmp_path)
-    session = create_session("test.m4a", audio, "vi", "ko")
+    session = create_session("test.m4a", audio, "ko")
     assert session.status == "processing"
 
 
 def test_save_and_load_session(tmp_path):
     audio = _make_audio(tmp_path)
-    session = create_session("test.m4a", audio, "vi", "ko")
+    session = create_session("test.m4a", audio, "ko")
 
     session.status = "completed"
     session.speaker_names = {"1": "화자 1", "2": "화자 2"}
@@ -60,9 +60,9 @@ def test_save_and_load_session(tmp_path):
 def test_list_sessions_sorted_by_date(tmp_path):
     audio = _make_audio(tmp_path)
 
-    s1 = create_session("first.m4a", audio, "vi", "ko")
+    s1 = create_session("first.m4a", audio, "ko")
     time.sleep(0.01)
-    s2 = create_session("second.m4a", audio, "vi", "ko")
+    s2 = create_session("second.m4a", audio, "ko")
 
     sessions = list_sessions()
     assert len(sessions) == 2
@@ -72,7 +72,7 @@ def test_list_sessions_sorted_by_date(tmp_path):
 
 def test_delete_session_removes_directory(tmp_path):
     audio = _make_audio(tmp_path)
-    session = create_session("test.m4a", audio, "vi", "ko")
+    session = create_session("test.m4a", audio, "ko")
 
     session_dir = tmp_path / session.id
     assert session_dir.exists()

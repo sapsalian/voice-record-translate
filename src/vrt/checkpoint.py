@@ -6,7 +6,6 @@ import json
 @dataclass
 class Checkpoint:
     file_path: str
-    source_lang: str
     target_lang: str
     segments: list[dict] | None = None
     corrected_segments: list[dict] = field(default_factory=list)
@@ -24,7 +23,7 @@ def load_checkpoint(file_path: str) -> Checkpoint | None:
     if not p.exists():
         return None
     data = json.loads(p.read_text(encoding="utf-8"))
-    return Checkpoint(**data)
+    return Checkpoint(**{k: v for k, v in data.items() if k in Checkpoint.__dataclass_fields__})
 
 
 def save_checkpoint(cp: Checkpoint) -> None:

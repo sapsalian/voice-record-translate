@@ -10,7 +10,6 @@ CONFIG_FILE = CONFIG_DIR / "config.json"
 class Config:
     openai_api_key: str = ""
     soniox_api_key: str = ""
-    source_lang: str = "vi"
     target_lang: str = "ko"
 
 

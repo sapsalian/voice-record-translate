@@ -1,3 +1,5 @@
+import math
+import os
 from dataclasses import asdict
 from pathlib import Path
 
@@ -23,11 +25,9 @@ class ProcessingWorker(QThread):
         self.reset = reset
 
     def run(self) -> None:
-        import os
         session = create_session(
             title=os.path.basename(self.file_path),
             audio_src=self.file_path,
-            source_lang=self.config.source_lang,
             target_lang=self.config.target_lang,
         )
         try:
@@ -35,7 +35,7 @@ class ProcessingWorker(QThread):
             if self.reset:
                 delete_checkpoint(self.file_path)
             cp = load_checkpoint(self.file_path)
-            if cp and (cp.source_lang != self.config.source_lang or cp.target_lang != self.config.target_lang):
+            if cp and cp.target_lang != self.config.target_lang:
                 cp = None  # lang 불일치 체크포인트는 무시
 
             # ── 전사 ──────────────────────────────────────────────────
@@ -48,21 +48,18 @@ class ProcessingWorker(QThread):
                 segments = transcribe(
                     self.file_path,
                     api_key=self.config.soniox_api_key,
-                    language=self.config.source_lang or None,
                 )
                 if not segments:
                     self.error.emit("전사 결과가 없습니다.")
                     return
                 cp = Checkpoint(
                     file_path=self.file_path,
-                    source_lang=self.config.source_lang,
                     target_lang=self.config.target_lang,
                     segments=[asdict(s) for s in segments],
                 )
                 save_checkpoint(cp)
 
             # ── 번역 ──────────────────────────────────────────────────
-            import math
             total_chunks = math.ceil(len(segments) / CHUNK_SIZE)
 
             start_chunk = 0
@@ -74,11 +71,10 @@ class ProcessingWorker(QThread):
                 try:
                     initial_corrected = [CorrectedSegment(**s) for s in cp.corrected_segments]
                 except Exception:
-                    # 구 형식 체크포인트 (start/end 기반) → 무시하고 처음부터
                     start_chunk = 0
                     initial_corrected = None
                     cp = None
-                if cp.ctx_summary:
+                if cp and cp.ctx_summary:
                     initial_ctx = _ChunkCtx(
                         summary=cp.ctx_summary,
                         recent_pairs=[tuple(p) for p in cp.ctx_recent_pairs],  # type: ignore[arg-type]
@@ -100,7 +96,6 @@ class ProcessingWorker(QThread):
 
             translated = translate(
                 segments,
-                source_lang=self.config.source_lang,
                 target_lang=self.config.target_lang,
                 api_key=self.config.openai_api_key,
                 progress_callback=_on_progress,
@@ -113,7 +108,7 @@ class ProcessingWorker(QThread):
             # ── SRT 생성 ──────────────────────────────────────────────
             self.progress.emit("SRT 파일 생성 중...", 90)
             base = Path(self.file_path).with_suffix("")
-            original_path = str(base) + f".{self.config.source_lang}.srt"
+            original_path = str(base) + ".original.srt"
             translated_path = str(base) + f".{self.config.target_lang}.srt"
 
             write_srt(

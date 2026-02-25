@@ -8,11 +8,11 @@ from pydantic import BaseModel
 from .transcribe import Segment
 
 LANGUAGES = {
-    "vi": "Vietnamese",
     "ko": "Korean",
     "en": "English",
     "ja": "Japanese",
     "zh": "Chinese",
+    "vi": "Vietnamese",
 }
 
 CHUNK_SIZE = 100
@@ -54,7 +54,6 @@ def _segment_to_dict(seg: Segment, index: int) -> dict:
 
 def translate(
     segments: List[Segment],
-    source_lang: str,
     target_lang: str,
     api_key: str,
     model: str = "gpt-4.1",
@@ -78,7 +77,7 @@ def translate(
             continue
 
         corrected_segs, ctx = _translate_chunk(
-            chunk, source_lang, target_lang, api_key, model, temperature, ctx
+            chunk, target_lang, api_key, model, temperature, ctx
         )
         all_corrected.extend(corrected_segs)
 
@@ -103,7 +102,6 @@ def translate(
 
 def _translate_chunk(
     chunk: List[Segment],
-    source_lang: str,
     target_lang: str,
     api_key: str,
     model: str,
@@ -112,14 +110,14 @@ def _translate_chunk(
 ) -> tuple[list[CorrectedSegment], _ChunkCtx]:
     indexed = list(enumerate(chunk))
 
-    result = _call_api_chunk(indexed, source_lang, target_lang, api_key, model, temperature, ctx)
+    result = _call_api_chunk(indexed, target_lang, api_key, model, temperature, ctx)
     corrected = list(result.segments)
 
     # 누락된 인덱스만 재전송
     returned = {seg.index for seg in corrected}
     missing = [(i, seg) for i, seg in indexed if i not in returned]
     if missing:
-        retry = _call_api_chunk(missing, source_lang, target_lang, api_key, model, temperature, ctx=None)
+        retry = _call_api_chunk(missing, target_lang, api_key, model, temperature, ctx=None)
         corrected.extend(retry.segments)
 
     # 재시도 후에도 누락된 것은 폴백
@@ -144,14 +142,12 @@ def _translate_chunk(
 
 def _call_api_chunk(
     indexed_segs: list[tuple[int, Segment]],
-    source_lang: str,
     target_lang: str,
     api_key: str,
     model: str,
     temperature: float,
     ctx: _ChunkCtx | None,
 ) -> CorrectionResult:
-    source_name = LANGUAGES.get(source_lang, source_lang)
     target_name = LANGUAGES.get(target_lang, target_lang)
 
     segments_json = json.dumps(
@@ -162,7 +158,7 @@ def _call_api_chunk(
     context_block = ""
     if ctx:
         pairs_text = "\n".join(
-            f"{source_lang}: {orig} → {target_lang}: {trans}"
+            f"original: {orig} → {target_lang}: {trans}"
             for orig, trans in ctx.recent_pairs
         )
         context_block = (
@@ -175,14 +171,14 @@ def _call_api_chunk(
         f"{context_block}"
         f"[교정 및 번역 지시]\n"
         f"You are a professional translator and transcription corrector.\n"
-        f"The audio is a conversation between multiple speakers.\n"
+        f"The audio is a conversation between multiple speakers. The source language may vary.\n"
         f"You will receive a JSON array of segments. Each has an 'index' and transcribed text.\n"
-        f"Correct the transcription and translate from {source_name} to {target_name}.\n"
+        f"Correct any transcription errors and translate to {target_name}.\n"
         f"You MUST return JSON that matches the provided schema.\n"
         f"Rules:\n"
         f"- Return a result for EVERY index. Do NOT skip or merge any segment.\n"
         f"- Correct transcription errors based on context.\n"
-        f"- corrected: the corrected source text ({source_name}).\n"
+        f"- corrected: the corrected source text (preserve the original language).\n"
         f"- translated: the translation in {target_name}.\n"
         f"- summary: 이전 누적 요약(있다면)과 이번 청크 내용을 합쳐 전체 대화의 누적 요약을 작성. "
         f"고유명사(이름, 회사명, 지역명)와 주요 주제를 반드시 포함. 2~5문장.\n"

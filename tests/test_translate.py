@@ -28,7 +28,7 @@ def _segments(*texts, speaker=None):
 # ── translate() - 단일 청크 ───────────────────────────────────────────────
 
 def test_translate_empty():
-    assert translate([], "vi", "ko", "sk-fake") == []
+    assert translate([], "ko", "sk-fake") == []
 
 
 def test_translate_success_no_retry():
@@ -43,7 +43,7 @@ def test_translate_success_no_retry():
             _seg(1, "Bạn có khỏe không?", "잘 지내세요?"),
         )
 
-        result = translate(segs, "vi", "ko", "sk-fake")
+        result = translate(segs, "ko", "sk-fake")
 
     assert client.responses.parse.call_count == 1
     assert result[0].translated == "안녕하세요."
@@ -62,7 +62,7 @@ def test_translate_retry_on_missing_index():
             _chunk_resp("재시도", _seg(1, "Bạn có khỏe không?", "잘 지내세요?")),
         ]
 
-        result = translate(segs, "vi", "ko", "sk-fake")
+        result = translate(segs, "ko", "sk-fake")
 
     assert client.responses.parse.call_count == 2
     assert result[0].translated == "안녕하세요."
@@ -81,7 +81,7 @@ def test_translate_fallback_on_persistent_failure():
             _chunk_resp("재시도"), # 여전히 빈 segments
         ]
 
-        result = translate(segs, "vi", "ko", "sk-fake")
+        result = translate(segs, "ko", "sk-fake")
 
     assert result[0].translated == "[번역실패] Xin chào."
     assert result[1].translated == "[번역실패] Bạn có khỏe không?"
@@ -99,7 +99,7 @@ def test_translate_timestamps_preserved():
             _seg(0, "Hello", "안녕"),
         )
 
-        result = translate(segs, "en", "ko", "sk-fake")
+        result = translate(segs, "ko", "sk-fake")
 
     assert result[0].start == 1.5
     assert result[0].end == 3.0
@@ -127,7 +127,7 @@ def test_translate_two_chunks():
             make_chunk_resp(segs[100:]),
         ]
 
-        result = translate(segs, "vi", "ko", "sk-fake")
+        result = translate(segs, "ko", "sk-fake")
 
     assert client.responses.parse.call_count == 2
     assert len(result) == 150
@@ -150,7 +150,7 @@ def test_translate_progress_callback():
             _chunk_resp("요약", *[_seg(i, f"t_{i}", f"번_{i}") for i in range(50)]),
         ]
 
-        translate(segs, "vi", "ko", "sk-fake", progress_callback=lambda d, t: calls.append((d, t)))
+        translate(segs, "ko", "sk-fake", progress_callback=lambda d, t: calls.append((d, t)))
 
     assert calls == [(1, 2), (2, 2)]
 
@@ -167,7 +167,7 @@ def test_translate_second_chunk_gets_context():
             _chunk_resp("두번째 요약", *[_seg(i, f"t_{i}", f"번_{i}") for i in range(10)]),
         ]
 
-        translate(segs, "vi", "ko", "sk-fake")
+        translate(segs, "ko", "sk-fake")
 
     second_call_args = client.responses.parse.call_args_list[1]
     system_content = second_call_args.kwargs["input"][0]["content"]
@@ -190,7 +190,7 @@ def test_translate_resume_skips_done_chunks():
         )
 
         result = translate(
-            segs, "vi", "ko", "sk-fake",
+            segs, "ko", "sk-fake",
             start_chunk=1,
             initial_corrected=already,
         )
@@ -215,7 +215,7 @@ def test_translate_on_chunk_done_called():
         ]
 
         translate(
-            segs, "vi", "ko", "sk-fake",
+            segs, "ko", "sk-fake",
             on_chunk_done=lambda idx, collected, ctx: calls.append((idx, len(collected), ctx.summary)),
         )
 
@@ -240,7 +240,7 @@ def test_speaker_preserved_single_speaker():
             _seg(0, "xin chào", "안녕하세요"),
             _seg(1, "bạn khỏe không", "잘 지내세요"),
         )
-        result = translate(segs, "vi", "ko", "sk-fake")
+        result = translate(segs, "ko", "sk-fake")
 
     assert len(result) == 2
     assert result[0].speaker == "1"
@@ -262,7 +262,7 @@ def test_speaker_preserved_two_speakers():
             _seg(0, "xin chào", "안녕하세요"),
             _seg(1, "cảm ơn", "감사합니다"),
         )
-        result = translate(segs, "vi", "ko", "sk-fake")
+        result = translate(segs, "ko", "sk-fake")
 
     assert len(result) == 2
     assert result[0].speaker == "1"
@@ -280,6 +280,6 @@ def test_speaker_none_when_segment_speaker_is_none():
             "요약",
             _seg(0, "hello", "안녕"),
         )
-        result = translate(segs, "en", "ko", "sk-fake")
+        result = translate(segs, "ko", "sk-fake")
 
     assert result[0].speaker is None

@@ -89,7 +89,7 @@ class MainWindow(QMainWindow):
             self.selected_file = path
             self._file_label.setText(Path(path).name)
             cp = load_checkpoint(path)
-            if cp and cp.source_lang == self.config.source_lang and cp.target_lang == self.config.target_lang:
+            if cp and cp.target_lang == self.config.target_lang:
                 self._status_label.setText("이전 작업이 감지되었습니다. 이어서 진행합니다.")
             else:
                 self._status_label.setText("준비")

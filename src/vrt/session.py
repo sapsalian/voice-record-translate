@@ -16,7 +16,6 @@ class Session:
     title: str
     created_at: str          # ISO 8601 UTC
     audio_filename: str
-    source_lang: str
     target_lang: str
     status: str = "processing"   # processing | completed | failed
     duration: float | None = None
@@ -27,7 +26,7 @@ class Session:
     segments: list = field(default_factory=list)
 
 
-def create_session(title: str, audio_src: str, source_lang: str, target_lang: str) -> Session:
+def create_session(title: str, audio_src: str, target_lang: str) -> Session:
     sid = str(uuid.uuid4())
     sdir = SESSIONS_DIR / sid
     sdir.mkdir(parents=True, exist_ok=True)
@@ -41,7 +40,6 @@ def create_session(title: str, audio_src: str, source_lang: str, target_lang: st
         title=title,
         created_at=datetime.now(timezone.utc).isoformat(),
         audio_filename=audio_filename,
-        source_lang=source_lang,
         target_lang=target_lang,
     )
     save_session(session)
