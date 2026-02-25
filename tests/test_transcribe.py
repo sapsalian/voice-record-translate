@@ -6,7 +6,7 @@ import tempfile
 import av
 import pytest
 
-from vrt.transcribe import MAX_FILE_SIZE, Segment, _split_audio, transcribe
+from vrt.transcribe import MAX_FILE_SIZE, Segment, _merge_texts, _split_audio, transcribe
 
 
 # ── 헬퍼 ──────────────────────────────────────────────────────────────────────
@@ -190,6 +190,56 @@ def test_transcribe_cleanup_temp_files_on_error(tmp_path):
     # 임시 파일은 chunk와 다른 경로여야 cleanup 대상
     # 여기서는 _split_audio를 mock했으므로 chunk 파일은 삭제 안 됨 (원본과 다른 경우만 삭제)
     # 이 테스트는 cleanup 로직이 finally에 있음을 검증
+
+
+def test_merge_texts_overlap():
+    a = "안녕하세요 반갑습니다 저는"
+    b = "반갑습니다 저는 홍길동입니다"
+    assert _merge_texts(a, b) == "안녕하세요 반갑습니다 저는 홍길동입니다"
+
+
+def test_merge_texts_no_overlap():
+    assert _merge_texts("안녕", "홍길동") == "안녕 홍길동"
+
+
+def test_merge_texts_empty():
+    assert _merge_texts("", "홍길동") == "홍길동"
+    assert _merge_texts("안녕", "") == "안녕"
+
+
+def test_transcribe_deduplicates_overlap_at_boundary(tmp_path):
+    """청크 경계 겹침 세그먼트가 KMP로 병합되는지 검증."""
+    f = str(tmp_path / "large.m4a")
+    Path(f).write_bytes(b"x")
+
+    chunk1 = str(tmp_path / "chunk1.m4a")
+    chunk2 = str(tmp_path / "chunk2.m4a")
+    Path(chunk1).write_bytes(b"x")
+    Path(chunk2).write_bytes(b"x")
+
+    with patch("vrt.transcribe._split_audio", return_value=[
+        (chunk1, 0.0),
+        (chunk2, 10.0),  # 2번째 청크 offset=10초
+    ]):
+        with patch("vrt.transcribe.OpenAI") as mock_openai:
+            client = MagicMock()
+            mock_openai.return_value = client
+            client.audio.transcriptions.create.side_effect = [
+                _mock_api_response(_mock_seg(9.5, 10.3, "안녕하세요 반갑습니다 저는")),
+                _mock_api_response(
+                    _mock_seg(0.0, 0.5, "반갑습니다 저는 홍길동입니다"),  # global [10.0, 10.5] → overlap
+                    _mock_seg(1.0, 3.0, "감사합니다"),                    # global [11.0, 13.0]
+                ),
+            ]
+
+            result = transcribe(f, "sk-fake")
+
+    assert len(result) == 2
+    assert result[0].start == 9.5
+    assert result[0].end == 10.5
+    assert result[0].text == "안녕하세요 반갑습니다 저는 홍길동입니다"
+    assert result[1].start == 11.0
+    assert result[1].text == "감사합니다"
 
 
 def test_transcribe_cleanup_does_not_delete_original(tmp_path):

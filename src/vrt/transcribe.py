@@ -1,5 +1,6 @@
 import math
 import os
+import re
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -7,7 +8,7 @@ from pathlib import Path
 import av
 from openai import OpenAI
 
-MAX_FILE_SIZE = 24 * 1024 * 1024  # 24 MB (Whisper 제한 25MB에서 1MB 여유)
+MAX_FILE_SIZE = 8 * 1024 * 1024  # 24 MB (Whisper 제한 25MB에서 1MB 여유)
 OVERLAP_SECS = 0.5  # 청크 경계 겹침 (단어 잘림 방지)
 
 
@@ -16,6 +17,8 @@ class Segment:
     start: float
     end: float
     text: str
+    no_speech_prob: float | None = None
+    avg_logprob: float | None = None
 
 
 def transcribe(
@@ -40,10 +43,53 @@ def transcribe(
             for p in temp_paths:
                 Path(p).unlink(missing_ok=True)
 
-        return all_segments
+        return _dedupe_segments(all_segments)
 
     except Exception as e:
         raise RuntimeError(f"Transcription failed: {e}")
+
+
+def _normalize_words(text: str) -> list[str]:
+    return re.sub(r"[^\w\s]", "", text.lower()).split()
+
+
+def _merge_texts(a: str, b: str) -> str:
+    """A의 접미사와 B의 접두사 중 최장 겹침을 KMP로 찾아 병합."""
+    if not a:
+        return b
+    if not b:
+        return a
+
+    wa, wb = a.split(), b.split()
+    na, nb = _normalize_words(a), _normalize_words(b)
+
+    s = nb + [None] + na
+    pi = [0] * len(s)
+    for i in range(1, len(s)):
+        j = pi[i - 1]
+        while j > 0 and s[i] != s[j]:
+            j = pi[j - 1]
+        if s[i] == s[j]:
+            j += 1
+        pi[i] = j
+
+    k = pi[-1]
+    return " ".join(wa + wb[k:])
+
+
+def _dedupe_segments(segments: list[Segment]) -> list[Segment]:
+    result = []
+    for seg in sorted(segments, key=lambda s: s.start):
+        if result and seg.start < result[-1].end:
+            prev = result[-1]
+            result[-1] = Segment(
+                prev.start,
+                max(prev.end, seg.end),
+                _merge_texts(prev.text, seg.text),
+            )
+        else:
+            result.append(seg)
+    return result
 
 
 def _transcribe_single(
@@ -63,7 +109,16 @@ def _transcribe_single(
         response = client.audio.transcriptions.create(**params)
 
     segments = getattr(response, "segments", None) or []
-    return [Segment(start=s.start, end=s.end, text=s.text.strip()) for s in segments]
+    return [
+        Segment(
+            start=s.start,
+            end=s.end,
+            text=s.text.strip(),
+            no_speech_prob=getattr(s, "no_speech_prob", None),
+            avg_logprob=getattr(s, "avg_logprob", None),
+        )
+        for s in segments
+    ]
 
 
 def _split_audio(file_path: str) -> list[tuple[str, float]]:
@@ -104,6 +159,7 @@ def _split_audio(file_path: str) -> list[tuple[str, float]]:
 
             with av.open(tmp.name, "w", format="mp4") as out:
                 out_stream = out.add_stream("aac", rate=rate)
+                out_stream.bit_rate = audio.codec_context.bit_rate or 64_000
                 resampler = av.AudioResampler(
                     format="fltp",
                     layout=layout_str,
