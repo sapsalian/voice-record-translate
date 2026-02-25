@@ -1,10 +1,12 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+import av
 from soniox.client import SonioxClient
 from soniox.types import CreateTranscriptionConfig, Token
 
 TRANSCRIPTION_TIMEOUT = 600  # seconds
+MAX_DURATION_SEC = 18_000    # 300 minutes — Soniox hard limit
 
 
 @dataclass
@@ -19,18 +21,31 @@ def transcribe(
     file_path: str,
     api_key: str,
 ) -> list[Segment]:
+    _check_duration(file_path)
     client = SonioxClient(api_key=api_key)
     with open(file_path, "rb") as f:
-        transcription = client.stt.transcribe(
+        transcript = client.stt.transcribe_and_wait_with_tokens(
             file=f,
             filename=Path(file_path).name,
             config=CreateTranscriptionConfig(
                 enable_speaker_diarization=True,
             ),
+            delete_after=True,
+            wait_timeout_sec=TRANSCRIPTION_TIMEOUT,
         )
-    client.stt.wait(transcription.id, timeout_sec=TRANSCRIPTION_TIMEOUT)
-    transcript = client.stt.get_transcript(transcription.id)
     return _tokens_to_segments(transcript.tokens)
+
+
+def _check_duration(file_path: str) -> None:
+    with av.open(file_path) as container:
+        if container.duration is None:
+            return
+        duration_sec = container.duration / 1_000_000  # av uses microseconds
+        if duration_sec > MAX_DURATION_SEC:
+            minutes = int(duration_sec / 60)
+            raise ValueError(
+                f"파일 재생 시간이 {minutes}분으로 Soniox 최대 허용 시간(300분)을 초과합니다."
+            )
 
 
 def _tokens_to_segments(tokens: list[Token]) -> list[Segment]:

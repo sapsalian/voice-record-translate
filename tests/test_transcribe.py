@@ -1,6 +1,7 @@
+import pytest
 from unittest.mock import MagicMock, patch
 
-from vrt.transcribe import Segment, _group_to_segment, _tokens_to_segments, transcribe
+from vrt.transcribe import Segment, _check_duration, _group_to_segment, _tokens_to_segments, transcribe
 
 
 # ── 헬퍼 ──────────────────────────────────────────────────────────────────────
@@ -16,9 +17,7 @@ def _tok(text, start_ms, end_ms, speaker="1"):
 
 def _mock_client(tokens):
     client = MagicMock()
-    client.stt.transcribe.return_value = MagicMock(id="tx-1")
-    client.stt.wait.return_value = None
-    client.stt.get_transcript.return_value = MagicMock(tokens=tokens)
+    client.stt.transcribe_and_wait_with_tokens.return_value = MagicMock(tokens=tokens)
     return client
 
 
@@ -97,6 +96,35 @@ def test_group_to_segment_basic():
     assert seg.speaker == "1"
 
 
+# ── _check_duration ───────────────────────────────────────────────────────────
+
+def _mock_av_container(duration_sec):
+    container = MagicMock()
+    container.duration = int(duration_sec * 1_000_000) if duration_sec is not None else None
+    container.__enter__ = lambda s: s
+    container.__exit__ = MagicMock(return_value=False)
+    return container
+
+
+def test_check_duration_accepts_short_file(tmp_path):
+    f = str(tmp_path / "short.mp3")
+    with patch("vrt.transcribe.av.open", return_value=_mock_av_container(3600)):  # 60분
+        _check_duration(f)  # 예외 없음
+
+
+def test_check_duration_rejects_long_file(tmp_path):
+    f = str(tmp_path / "long.mp3")
+    with patch("vrt.transcribe.av.open", return_value=_mock_av_container(18_001)):  # 300분 1초
+        with pytest.raises(ValueError, match="300분"):
+            _check_duration(f)
+
+
+def test_check_duration_skips_when_unknown(tmp_path):
+    f = str(tmp_path / "unknown.mp3")
+    with patch("vrt.transcribe.av.open", return_value=_mock_av_container(None)):
+        _check_duration(f)  # duration=None → 예외 없음
+
+
 # ── transcribe() ──────────────────────────────────────────────────────────────
 
 def test_transcribe_returns_segments(tmp_path):
@@ -108,7 +136,8 @@ def test_transcribe_returns_segments(tmp_path):
         _tok("cảm ơn", 600, 1000, "2"),
     ]
 
-    with patch("vrt.transcribe.SonioxClient") as mock_cls:
+    with patch("vrt.transcribe._check_duration"), \
+         patch("vrt.transcribe.SonioxClient") as mock_cls:
         mock_cls.return_value = _mock_client(tokens)
         result = transcribe(f, "sk-fake")
 
@@ -122,21 +151,25 @@ def test_transcribe_empty_response(tmp_path):
     f = str(tmp_path / "test.mp3")
     open(f, "wb").close()
 
-    with patch("vrt.transcribe.SonioxClient") as mock_cls:
+    with patch("vrt.transcribe._check_duration"), \
+         patch("vrt.transcribe.SonioxClient") as mock_cls:
         mock_cls.return_value = _mock_client([])
         result = transcribe(f, "sk-fake")
 
     assert result == []
 
 
-def test_transcribe_calls_wait_and_get_transcript(tmp_path):
+def test_transcribe_uses_delete_after(tmp_path):
+    """transcribe_and_wait_with_tokens에 delete_after=True가 전달되는지 확인."""
     f = str(tmp_path / "test.mp3")
     open(f, "wb").close()
 
-    with patch("vrt.transcribe.SonioxClient") as mock_cls:
+    with patch("vrt.transcribe._check_duration"), \
+         patch("vrt.transcribe.SonioxClient") as mock_cls:
         client = _mock_client([])
         mock_cls.return_value = client
         transcribe(f, "sk-fake")
 
-    client.stt.wait.assert_called_once_with("tx-1", timeout_sec=600)
-    client.stt.get_transcript.assert_called_once_with("tx-1")
+    call_kwargs = client.stt.transcribe_and_wait_with_tokens.call_args.kwargs
+    assert call_kwargs["delete_after"] is True
+    assert call_kwargs["wait_timeout_sec"] == 600
