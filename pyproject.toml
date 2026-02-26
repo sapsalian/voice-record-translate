@@ -3,7 +3,9 @@ name = "voice-record-translate"
 version = "0.1.0"
 requires-python = ">=3.10"
 dependencies = [
-    "PyQt6>=6.6",
+    "pywebview>=5.0",
+    "flask>=3.0",
+    "flask-cors>=4.0",
     "openai==2.23.0",
     "av>=12.0",
     "soniox",
