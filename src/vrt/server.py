@@ -85,6 +85,10 @@ def cancel_session_route(session_id: str):
     worker = _workers.pop(session_id, None)
     if worker:
         worker.cancel()
+        session = load_session(session_id)
+        if session and session.status == "processing":
+            session.progress_message = "취소 중..."
+            save_session(session)
     return jsonify({"ok": True})
 
 

@@ -28,6 +28,7 @@ export function SessionItem({ session, onUpdate, onDelete }: Props) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(session.title);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const poll = useCallback(async () => {
@@ -89,6 +90,7 @@ export function SessionItem({ session, onUpdate, onDelete }: Props) {
   };
 
   const handleCancel = async () => {
+    setIsCancelling(true);
     await cancelSession(session.id).catch(() => {});
   };
 
@@ -171,8 +173,9 @@ export function SessionItem({ session, onUpdate, onDelete }: Props) {
             variant="ghost"
             className="text-muted-foreground"
             onClick={handleCancel}
+            disabled={isCancelling}
           >
-            취소
+            {isCancelling ? '취소 중...' : '취소'}
           </Button>
         )}
 
