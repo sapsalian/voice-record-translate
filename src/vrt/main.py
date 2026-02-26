@@ -16,7 +16,7 @@ def main() -> None:
 
     class API:
         def open_file_dialog(self) -> str | None:
-            result = webview.windows[0].create_file_dialog(webview.OPEN_DIALOG)
+            result = webview.windows[0].create_file_dialog(webview.FileDialog.OPEN)
             return result[0] if result else None
 
     if os.environ.get("VRT_DEV"):
