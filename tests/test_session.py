@@ -84,3 +84,36 @@ def test_delete_session_removes_directory(tmp_path):
 def test_load_nonexistent_returns_none():
     result = load_session("nonexistent-id")
     assert result is None
+
+
+def test_checkpoint_fields_roundtrip(tmp_path):
+    audio = _make_audio(tmp_path)
+    session = create_session("test.m4a", audio, "ko")
+
+    session.cp_segments = [{"start": 0.0, "end": 1.0, "text": "xin chào", "speaker": "1"}]
+    session.cp_corrected_segments = [{"index": 0, "corrected": "xin chào", "translated": "안녕하세요"}]
+    session.cp_last_chunk_done = 2
+    session.cp_ctx_summary = "인사 나눔"
+    session.cp_ctx_recent_pairs = [["xin chào", "안녕하세요"]]
+    save_session(session)
+
+    loaded = load_session(session.id)
+    assert loaded is not None
+    assert loaded.cp_segments == session.cp_segments
+    assert loaded.cp_corrected_segments == session.cp_corrected_segments
+    assert loaded.cp_last_chunk_done == 2
+    assert loaded.cp_ctx_summary == "인사 나눔"
+    assert loaded.cp_ctx_recent_pairs == [["xin chào", "안녕하세요"]]
+
+
+def test_checkpoint_fields_default_values(tmp_path):
+    audio = _make_audio(tmp_path)
+    session = create_session("test.m4a", audio, "ko")
+
+    loaded = load_session(session.id)
+    assert loaded is not None
+    assert loaded.cp_segments is None
+    assert loaded.cp_corrected_segments == []
+    assert loaded.cp_last_chunk_done == -1
+    assert loaded.cp_ctx_summary == ""
+    assert loaded.cp_ctx_recent_pairs == []

@@ -24,6 +24,12 @@ class Session:
     progress_message: str = ""
     speaker_names: dict = field(default_factory=dict)
     segments: list = field(default_factory=list)
+    # 체크포인트 필드 (처리 중에만 사용, 완료 후 클리어)
+    cp_segments: list[dict] | None = None
+    cp_corrected_segments: list[dict] = field(default_factory=list)
+    cp_last_chunk_done: int = -1
+    cp_ctx_summary: str = ""
+    cp_ctx_recent_pairs: list[list[str]] = field(default_factory=list)
 
 
 def create_session(title: str, audio_src: str, target_lang: str) -> Session:

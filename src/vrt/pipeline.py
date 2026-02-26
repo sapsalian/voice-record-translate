@@ -5,11 +5,10 @@ from pathlib import Path
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from .checkpoint import Checkpoint, delete_checkpoint, load_checkpoint, save_checkpoint
 from .config import Config
 from .session import create_session, save_session
 from .srt import write_srt
-from .transcribe import Segment, transcribe
+from .transcribe import transcribe
 from .translate import CHUNK_SIZE, CorrectedSegment, _ChunkCtx, translate
 
 
@@ -31,77 +30,38 @@ class ProcessingWorker(QThread):
             target_lang=self.config.target_lang,
         )
         try:
-            # 체크포인트 로드 (reset=True면 삭제 후 무시)
-            if self.reset:
-                delete_checkpoint(self.file_path)
-            cp = load_checkpoint(self.file_path)
-            if cp and cp.target_lang != self.config.target_lang:
-                cp = None  # lang 불일치 체크포인트는 무시
-
             # ── 전사 ──────────────────────────────────────────────────
-            if cp and cp.segments is not None:
-                self.progress.emit("이전 전사 결과 불러오는 중...", 40)
-                valid = Segment.__dataclass_fields__.keys()
-                segments = [Segment(**{k: v for k, v in s.items() if k in valid}) for s in cp.segments]
-            else:
-                self.progress.emit("전사 중...", 0)
-                segments = transcribe(
-                    self.file_path,
-                    api_key=self.config.soniox_api_key,
-                )
-                if not segments:
-                    self.error.emit("전사 결과가 없습니다.")
-                    return
-                cp = Checkpoint(
-                    file_path=self.file_path,
-                    target_lang=self.config.target_lang,
-                    segments=[asdict(s) for s in segments],
-                )
-                save_checkpoint(cp)
+            self.progress.emit("전사 중...", 0)
+            segments = transcribe(
+                self.file_path,
+                api_key=self.config.soniox_api_key,
+            )
+            if not segments:
+                self.error.emit("전사 결과가 없습니다.")
+                return
+            session.cp_segments = [asdict(s) for s in segments]
+            save_session(session)
 
             # ── 번역 ──────────────────────────────────────────────────
             total_chunks = math.ceil(len(segments) / CHUNK_SIZE)
-
-            start_chunk = 0
-            initial_ctx: _ChunkCtx | None = None
-            initial_corrected: list[CorrectedSegment] | None = None
-
-            if cp and cp.last_chunk_done >= 0:
-                start_chunk = cp.last_chunk_done + 1
-                try:
-                    initial_corrected = [CorrectedSegment(**s) for s in cp.corrected_segments]
-                except Exception:
-                    start_chunk = 0
-                    initial_corrected = None
-                    cp = None
-                if cp and cp.ctx_summary:
-                    initial_ctx = _ChunkCtx(
-                        summary=cp.ctx_summary,
-                        recent_pairs=[tuple(p) for p in cp.ctx_recent_pairs],  # type: ignore[arg-type]
-                    )
-
-            self.progress.emit(f"번역 중... ({start_chunk + 1}/{total_chunks}청크)", 50)
+            self.progress.emit(f"번역 중... (1/{total_chunks}청크)", 50)
 
             def _on_progress(done: int, total: int) -> None:
                 pct = 50 + int((done / total) * 40)
                 self.progress.emit(f"번역 중... ({done}/{total}청크)", pct)
 
             def _on_chunk_done(chunk_idx: int, all_corrected: list[CorrectedSegment], ctx: _ChunkCtx) -> None:
-                assert cp is not None
-                cp.last_chunk_done = chunk_idx
-                cp.corrected_segments = [s.model_dump() for s in all_corrected]
-                cp.ctx_summary = ctx.summary
-                cp.ctx_recent_pairs = [list(p) for p in ctx.recent_pairs]
-                save_checkpoint(cp)
+                session.cp_last_chunk_done = chunk_idx
+                session.cp_corrected_segments = [s.model_dump() for s in all_corrected]
+                session.cp_ctx_summary = ctx.summary
+                session.cp_ctx_recent_pairs = [list(p) for p in ctx.recent_pairs]
+                save_session(session)
 
             translated = translate(
                 segments,
                 target_lang=self.config.target_lang,
                 api_key=self.config.openai_api_key,
                 progress_callback=_on_progress,
-                start_chunk=start_chunk,
-                initial_ctx=initial_ctx,
-                initial_corrected=initial_corrected,
                 on_chunk_done=_on_chunk_done,
             )
 
@@ -120,8 +80,6 @@ class ProcessingWorker(QThread):
                 translated_path,
             )
 
-            delete_checkpoint(self.file_path)
-
             speaker_ids = sorted({s.speaker for s in translated if s.speaker})
             session.speaker_names = {sid: f"화자 {i + 1}" for i, sid in enumerate(speaker_ids)}
             session.segments = [
@@ -131,6 +89,11 @@ class ProcessingWorker(QThread):
             ]
             session.duration = translated[-1].end if translated else None
             session.status = "completed"
+            session.cp_segments = None
+            session.cp_corrected_segments = []
+            session.cp_last_chunk_done = -1
+            session.cp_ctx_summary = ""
+            session.cp_ctx_recent_pairs = []
             save_session(session)
 
             self.progress.emit("완료", 100)
