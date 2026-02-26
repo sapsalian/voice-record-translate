@@ -7,7 +7,6 @@ from soniox.client import SonioxClient
 from soniox.types import CreateTranscriptionConfig, Token
 
 TRANSCRIPTION_TIMEOUT = 600  # seconds
-MAX_DURATION_SEC = 18_000    # 300 minutes — Soniox hard limit
 CHUNK_MAX_SEC = 9_000        # 150 minutes — split threshold
 
 
@@ -24,11 +23,6 @@ def transcribe(
     api_key: str,
 ) -> list[Segment]:
     duration = _get_duration(file_path)
-    if duration is not None and duration > MAX_DURATION_SEC:
-        minutes = int(duration / 60)
-        raise ValueError(
-            f"파일 재생 시간이 {minutes}분으로 Soniox 최대 허용 시간(300분)을 초과합니다."
-        )
     if duration is None or duration <= CHUNK_MAX_SEC:
         return _transcribe_file(file_path, api_key)
     return _transcribe_chunked(file_path, api_key)
@@ -39,16 +33,6 @@ def _get_duration(file_path: str) -> float | None:
         if container.duration is None:
             return None
         return container.duration / 1_000_000  # av uses microseconds
-
-
-def _check_duration(file_path: str) -> None:
-    """기존 테스트 호환용. transcribe() 내부에서는 _get_duration() 사용."""
-    duration = _get_duration(file_path)
-    if duration is not None and duration > MAX_DURATION_SEC:
-        minutes = int(duration / 60)
-        raise ValueError(
-            f"파일 재생 시간이 {minutes}분으로 Soniox 최대 허용 시간(300분)을 초과합니다."
-        )
 
 
 def _transcribe_file(file_path: str, api_key: str, offset: float = 0.0) -> list[Segment]:

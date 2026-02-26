@@ -3,7 +3,6 @@ from unittest.mock import MagicMock, patch
 
 from vrt.transcribe import (
     Segment,
-    _check_duration,
     _get_duration,
     _group_to_segment,
     _tokens_to_segments,
@@ -112,26 +111,7 @@ def test_group_to_segment_basic():
     assert seg.speaker == "1"
 
 
-# ── _check_duration / _get_duration ───────────────────────────────────────────
-
-def test_check_duration_accepts_short_file(tmp_path):
-    f = str(tmp_path / "short.mp3")
-    with patch("vrt.transcribe.av.open", return_value=_mock_av_container(3600)):  # 60분
-        _check_duration(f)  # 예외 없음
-
-
-def test_check_duration_rejects_long_file(tmp_path):
-    f = str(tmp_path / "long.mp3")
-    with patch("vrt.transcribe.av.open", return_value=_mock_av_container(18_001)):  # 300분 1초
-        with pytest.raises(ValueError, match="300분"):
-            _check_duration(f)
-
-
-def test_check_duration_skips_when_unknown(tmp_path):
-    f = str(tmp_path / "unknown.mp3")
-    with patch("vrt.transcribe.av.open", return_value=_mock_av_container(None)):
-        _check_duration(f)  # duration=None → 예외 없음
-
+# ── _get_duration ─────────────────────────────────────────────────────────────
 
 def test_get_duration_returns_seconds(tmp_path):
     f = str(tmp_path / "test.mp3")
@@ -193,13 +173,6 @@ def test_transcribe_uses_delete_after(tmp_path):
     call_kwargs = client.stt.transcribe_and_wait_with_tokens.call_args.kwargs
     assert call_kwargs["delete_after"] is True
     assert call_kwargs["wait_timeout_sec"] == 600
-
-
-def test_transcribe_rejects_file_over_300min(tmp_path):
-    f = str(tmp_path / "long.mp3")
-    with patch("vrt.transcribe._get_duration", return_value=18_001.0):
-        with pytest.raises(ValueError, match="300분"):
-            transcribe(f, "sk-fake")
 
 
 # ── 청크 분할 ──────────────────────────────────────────────────────────────────
