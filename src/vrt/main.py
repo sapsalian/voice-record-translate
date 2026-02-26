@@ -15,12 +15,12 @@ def main() -> None:
     ).start()
 
     class API:
-        def open_file_dialog(self) -> str | None:
+        def open_file_dialog(self) -> list[str] | None:
             result = webview.windows[0].create_file_dialog(
-                webview.FileDialog.OPEN,
+                webview.FileDialog.OPEN_MULTIPLE,
                 file_types=("Audio Files (*.mp3;*.m4a;*.wav;*.ogg;*.flac;*.aac;*.wma;*.opus)",),
             )
-            return result[0] if result else None
+            return list(result) if result else None
 
     if os.environ.get("VRT_DEV"):
         url = f"http://localhost:5173?port={port}"

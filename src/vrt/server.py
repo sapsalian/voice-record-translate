@@ -1,6 +1,7 @@
 import dataclasses
 import os
 import socket
+import tempfile
 
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
@@ -40,6 +41,27 @@ def get_session(session_id: str):
 
 @app.post("/api/sessions")
 def post_session():
+    content_type = request.content_type or ""
+    if "multipart" in content_type:
+        audio = request.files.get("audio")
+        target_lang = request.form.get("target_lang", "ko")
+        if not audio:
+            return jsonify({"error": "audio is required"}), 400
+        suffix = os.path.splitext(audio.filename or "")[1] or ".audio"
+        tmp_fd, tmp_path = tempfile.mkstemp(suffix=suffix)
+        try:
+            os.close(tmp_fd)
+            audio.save(tmp_path)
+            title = audio.filename or "upload"
+            config = load_config()
+            session = create_session(title=title, audio_src=tmp_path, target_lang=target_lang)
+        finally:
+            os.unlink(tmp_path)
+        audio_path = str(SESSIONS_DIR / session.id / session.audio_filename)
+        worker = start_processing(session.id, audio_path, config)
+        _workers[session.id] = worker
+        return jsonify({"id": session.id}), 201
+
     data = request.get_json() or {}
     file_path = data.get("file_path")
     target_lang = data.get("target_lang", "ko")
@@ -56,6 +78,31 @@ def post_session():
     worker = start_processing(session.id, file_path, config, reset=reset)
     _workers[session.id] = worker
     return jsonify({"id": session.id}), 201
+
+
+@app.post("/api/sessions/<session_id>/cancel")
+def cancel_session_route(session_id: str):
+    worker = _workers.pop(session_id, None)
+    if worker:
+        worker.cancel()
+    return jsonify({"ok": True})
+
+
+@app.post("/api/sessions/<session_id>/retry")
+def retry_session_route(session_id: str):
+    session = load_session(session_id)
+    if session is None:
+        return jsonify({"error": "Not found"}), 404
+    config = load_config()
+    session.status = "processing"
+    session.error_message = None
+    session.progress = 0
+    session.progress_message = ""
+    save_session(session)
+    audio_path = str(SESSIONS_DIR / session_id / session.audio_filename)
+    worker = start_processing(session_id, audio_path, config, reset=False)
+    _workers[session_id] = worker
+    return jsonify({"ok": True})
 
 
 @app.delete("/api/sessions/<session_id>")

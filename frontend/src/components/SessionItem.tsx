@@ -1,8 +1,8 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { fetchSession } from '@/api/client';
+import { cancelSession, fetchSession, retrySession, updateSessionTitle } from '@/api/client';
 import type { Session } from '@/types/session';
 
 interface Props {
@@ -25,6 +25,11 @@ function formatDate(isoString: string): string {
 }
 
 export function SessionItem({ session, onUpdate, onDelete }: Props) {
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitle, setEditTitle] = useState(session.title);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
   const poll = useCallback(async () => {
     try {
       const updated = await fetchSession(session.id);
@@ -40,11 +45,84 @@ export function SessionItem({ session, onUpdate, onDelete }: Props) {
     return () => clearInterval(timer);
   }, [session.status, poll]);
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen]);
+
+  // Sync title when session prop changes
+  useEffect(() => {
+    setEditTitle(session.title);
+  }, [session.title]);
+
+  const handleSaveTitle = async () => {
+    const trimmed = editTitle.trim();
+    setIsEditingTitle(false);
+    if (!trimmed || trimmed === session.title) {
+      setEditTitle(session.title);
+      return;
+    }
+    try {
+      const updated = await updateSessionTitle(session.id, trimmed);
+      onUpdate(updated);
+    } catch {
+      setEditTitle(session.title);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditTitle(session.title);
+    setIsEditingTitle(false);
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm('세션과 오디오 파일이 함께 삭제됩니다. 계속하시겠습니까?')) {
+      onDelete(session.id);
+    }
+  };
+
+  const handleCancel = async () => {
+    await cancelSession(session.id).catch(() => {});
+  };
+
+  const handleRetry = async () => {
+    await retrySession(session.id).catch(() => {});
+    onUpdate({
+      ...session,
+      status: 'processing',
+      error_message: null,
+      progress: 0,
+      progress_message: '처리 재시작 중...',
+    });
+  };
+
   return (
-    <div className="flex items-center gap-3 rounded-lg border px-4 py-3">
+    <div className="group relative flex items-center gap-3 rounded-lg border px-4 py-3">
       <div className="flex-1 min-w-0">
+        {/* Title row */}
         <div className="flex items-center gap-2 mb-1">
-          <span className="font-medium truncate">{session.title}</span>
+          {isEditingTitle ? (
+            <input
+              autoFocus
+              className="font-medium bg-transparent border-b border-primary outline-none flex-1 min-w-0"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveTitle();
+                if (e.key === 'Escape') handleCancelEdit();
+              }}
+              onBlur={handleSaveTitle}
+            />
+          ) : (
+            <span className="font-medium truncate">{session.title}</span>
+          )}
           <Badge variant="outline" className="shrink-0 text-xs">
             {session.target_lang.toUpperCase()}
           </Badge>
@@ -56,6 +134,7 @@ export function SessionItem({ session, onUpdate, onDelete }: Props) {
           )}
         </div>
 
+        {/* Date and duration */}
         <div className="text-xs text-muted-foreground">
           {formatDate(session.created_at)}
           {session.duration != null && (
@@ -63,6 +142,7 @@ export function SessionItem({ session, onUpdate, onDelete }: Props) {
           )}
         </div>
 
+        {/* Progress bar */}
         {session.status === 'processing' && (
           <div className="mt-2 space-y-1">
             <div className="flex items-center gap-2">
@@ -75,36 +155,76 @@ export function SessionItem({ session, onUpdate, onDelete }: Props) {
           </div>
         )}
 
+        {/* Error message */}
         {session.status === 'failed' && session.error_message && (
-          <p className="mt-1 text-xs text-destructive truncate">{session.error_message}</p>
+          <p className="mt-1 text-xs text-destructive truncate" title={session.error_message}>
+            {session.error_message}
+          </p>
         )}
       </div>
 
+      {/* Action area */}
       <div className="shrink-0 flex gap-1">
-        {session.status === 'completed' && (
-          <Button size="sm" variant="outline" disabled>
-            열기
-          </Button>
-        )}
         {session.status === 'processing' && (
           <Button
             size="sm"
             variant="ghost"
             className="text-muted-foreground"
-            onClick={() => onDelete(session.id)}
+            onClick={handleCancel}
           >
             취소
           </Button>
         )}
+
         {session.status === 'failed' && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-muted-foreground"
-            onClick={() => onDelete(session.id)}
-          >
-            삭제
-          </Button>
+          <>
+            <Button size="sm" variant="outline" onClick={handleRetry}>
+              재시도
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-muted-foreground"
+              onClick={handleDelete}
+            >
+              삭제
+            </Button>
+          </>
+        )}
+
+        {session.status === 'completed' && (
+          <div ref={menuRef} className="relative">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => setMenuOpen((v) => !v)}
+            >
+              ⋯
+            </Button>
+            {menuOpen && (
+              <div className="absolute right-0 top-full mt-1 z-50 bg-popover border rounded-md shadow-md py-1 min-w-[120px]">
+                <button
+                  className="w-full text-left text-sm px-3 py-1.5 hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setIsEditingTitle(true);
+                  }}
+                >
+                  이름 변경
+                </button>
+                <button
+                  className="w-full text-left text-sm px-3 py-1.5 hover:bg-accent hover:text-accent-foreground text-destructive"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    handleDelete();
+                  }}
+                >
+                  삭제
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

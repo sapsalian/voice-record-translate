@@ -30,8 +30,39 @@ export async function startProcessing(
   return resp.json();
 }
 
+export async function uploadAndProcess(
+  file: File,
+  targetLang: string,
+): Promise<{ id: string }> {
+  const form = new FormData();
+  form.append('audio', file);
+  form.append('target_lang', targetLang);
+  const resp = await fetch(`${API_BASE}/api/sessions`, {
+    method: 'POST',
+    body: form,
+  });
+  return resp.json();
+}
+
+export async function cancelSession(id: string): Promise<void> {
+  await fetch(`${API_BASE}/api/sessions/${id}/cancel`, { method: 'POST' });
+}
+
+export async function retrySession(id: string): Promise<void> {
+  await fetch(`${API_BASE}/api/sessions/${id}/retry`, { method: 'POST' });
+}
+
 export async function deleteSession(id: string): Promise<void> {
   await fetch(`${API_BASE}/api/sessions/${id}`, { method: 'DELETE' });
+}
+
+export async function updateSessionTitle(id: string, title: string): Promise<Session> {
+  const resp = await fetch(`${API_BASE}/api/sessions/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  });
+  return resp.json();
 }
 
 export async function fetchConfig(): Promise<Config> {
