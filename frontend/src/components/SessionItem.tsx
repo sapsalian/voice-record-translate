@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -153,7 +154,10 @@ export function SessionItem({ session, onUpdate, onDelete }: Props) {
                 {session.progress}%
               </span>
             </div>
-            <p className="text-xs text-muted-foreground">{session.progress_message}</p>
+            <div className="flex items-center gap-1.5">
+              <Loader2 size={11} className="animate-spin text-muted-foreground shrink-0" />
+              <p className="text-xs text-muted-foreground">{session.progress_message}</p>
+            </div>
           </div>
         )}
 
@@ -175,7 +179,9 @@ export function SessionItem({ session, onUpdate, onDelete }: Props) {
             onClick={handleCancel}
             disabled={isCancelling}
           >
-            {isCancelling ? '취소 중...' : '취소'}
+            {isCancelling ? (
+              <span className="animate-pulse">취소 중...</span>
+            ) : '취소'}
           </Button>
         )}
 
