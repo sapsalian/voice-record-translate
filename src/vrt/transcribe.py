@@ -6,8 +6,8 @@ import av
 from soniox.client import SonioxClient
 from soniox.types import CreateTranscriptionConfig, Token
 
-TRANSCRIPTION_TIMEOUT = 3_600  # seconds — per chunk (max 150min audio)
-CHUNK_MAX_SEC = 9_000        # 150 minutes — split threshold
+TRANSCRIPTION_TIMEOUT = 60 * 60  # seconds — per chunk (max 150min audio)
+CHUNK_MAX_SEC = 150 * 60      # 150 minutes — split threshold
 
 
 @dataclass
@@ -86,37 +86,49 @@ def _transcribe_chunked(file_path: str, api_key: str) -> list[Segment]:
 def _split_audio(file_path: str, chunk_sec: float, tmp_dir: Path) -> list[tuple[str, float]]:
     """PyAV로 오디오를 chunk_sec 단위로 분할. [(tmp_path, offset_sec)] 반환.
 
-    재인코딩 없이 패킷 복사. 각 청크 타임스탬프는 0부터 시작하도록 재계산.
+    디코딩 후 AAC로 재인코딩하여 .m4a로 출력 (포맷·코덱 호환성 확보).
     """
     results: list[tuple[str, float]] = []
 
     with av.open(file_path) as src:
         audio = src.streams.audio[0]
         total_sec = (src.duration / 1_000_000) if src.duration else 0.0
+        rate = audio.codec_context.sample_rate or 44100
+        channels = audio.codec_context.channels or 1
+        layout = "mono" if channels == 1 else "stereo" if channels == 2 else f"{channels}c"
+        bit_rate = audio.codec_context.bit_rate or 64_000
 
         start_sec = 0.0
         chunk_idx = 0
         while start_sec < total_sec:
             end_sec = min(start_sec + chunk_sec, total_sec)
-            out_path = tmp_dir / f"chunk_{chunk_idx}{Path(file_path).suffix}"
+            out_path = tmp_dir / f"chunk_{chunk_idx}.m4a"
 
-            src.seek(int(start_sec * 1_000_000))
+            src.seek(int(start_sec * 1_000_000), any_frame=True, backward=True)
 
-            with av.open(str(out_path), "w") as dst:
-                dst_audio = dst.add_stream(template=audio)
-                for packet in src.demux(audio):
-                    if packet.pts is None:
+            with av.open(str(out_path), "w", format="mp4") as dst:
+                out_stream = dst.add_stream("aac", rate=rate)
+                out_stream.bit_rate = bit_rate
+                resampler = av.AudioResampler(format="fltp", layout=layout, rate=rate)
+
+                for frame in src.decode(audio):
+                    if frame.pts is None:
                         continue
-                    pts_sec = float(packet.pts * audio.time_base)
+                    pts_sec = float(frame.pts * frame.time_base)
+                    if pts_sec < start_sec:
+                        continue
                     if pts_sec >= end_sec:
                         break
-                    if pts_sec >= start_sec:
-                        offset_pts = int(start_sec / float(audio.time_base))
-                        packet.pts -= offset_pts
-                        if packet.dts is not None:
-                            packet.dts -= offset_pts
-                        packet.stream = dst_audio
+                    frame.pts = None
+                    for out_frame in resampler.resample(frame):
+                        for packet in out_stream.encode(out_frame):
+                            dst.mux(packet)
+
+                for out_frame in resampler.resample(None):
+                    for packet in out_stream.encode(out_frame):
                         dst.mux(packet)
+                for packet in out_stream.encode(None):
+                    dst.mux(packet)
 
             results.append((str(out_path), start_sec))
             start_sec = end_sec

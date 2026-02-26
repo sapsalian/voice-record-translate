@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from vrt.transcribe import (
+    CHUNK_MAX_SEC,
     Segment,
     _get_duration,
     _group_to_segment,
@@ -182,7 +183,7 @@ def test_transcribe_short_file_uses_single_call(tmp_path):
     f = str(tmp_path / "short.mp3")
     open(f, "wb").close()
 
-    with patch("vrt.transcribe._get_duration", return_value=3_600.0), \
+    with patch("vrt.transcribe._get_duration", return_value=float(CHUNK_MAX_SEC)), \
          patch("vrt.transcribe._transcribe_file", return_value=[]) as mock_tf:
         transcribe(f, "sk-fake")
 
