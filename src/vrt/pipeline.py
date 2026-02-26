@@ -45,7 +45,7 @@ class ProcessingWorker:
                     for s in session.cp_segments
                 ]
             else:
-                session.progress_message = "전사 중..."
+                session.progress_message = "음성 인식 중..."
                 session.progress = 0
                 save_session(session)
 
@@ -53,7 +53,7 @@ class ProcessingWorker:
                     if self._cancel_event.is_set():
                         return
                     session.progress = int(done / total * 40)
-                    session.progress_message = f"전사 중... ({done}/{total}청크)"
+                    session.progress_message = f"음성 인식 중... ({done}/{total})"
                     save_session(session)
 
                 segments = transcribe(
@@ -94,7 +94,7 @@ class ProcessingWorker:
                     )
 
             session.progress = 50 + int(start_chunk / total_chunks * 40) if total_chunks else 90
-            session.progress_message = f"번역 중... ({start_chunk}/{total_chunks}청크)"
+            session.progress_message = f"번역 중... ({start_chunk}/{total_chunks})"
             save_session(session)
 
             def _on_chunk_done(
@@ -105,7 +105,7 @@ class ProcessingWorker:
                 session.cp_ctx_summary = ctx.summary
                 session.cp_ctx_recent_pairs = [list(p) for p in ctx.recent_pairs]
                 session.progress = 50 + int((chunk_idx + 1) / total_chunks * 40)
-                session.progress_message = f"번역 중... ({chunk_idx + 1}/{total_chunks}청크)"
+                session.progress_message = f"번역 중... ({chunk_idx + 1}/{total_chunks})"
                 save_session(session)
                 if self._cancel_event.is_set():
                     raise RuntimeError("취소됨")
