@@ -231,3 +231,31 @@ def test_transcribe_chunked_remaps_speaker_ids(tmp_path):
     assert result[0].speaker == "1"
     assert result[1].speaker == "2"
     assert result[2].speaker == "3"   # 청크 2의 "1" → "3"으로 재매핑
+
+
+def test_transcribe_progress_callback_called_per_chunk(tmp_path):
+    """청크 분할 전사 시 progress_callback이 청크마다 호출됨."""
+    f = str(tmp_path / "long.mp3")
+    open(f, "wb").close()
+
+    calls = []
+    chunks = [Segment(0.0, 5.0, "a", "1")]
+    with patch("vrt.transcribe._get_duration", return_value=10_800.0), \
+         patch("vrt.transcribe._split_audio", return_value=[("/c1.mp3", 0.0), ("/c2.mp3", 9_000.0)]), \
+         patch("vrt.transcribe._transcribe_file", return_value=chunks):
+        transcribe(f, "sk-fake", progress_callback=lambda done, total: calls.append((done, total)))
+
+    assert calls == [(1, 2), (2, 2)]
+
+
+def test_transcribe_no_callback_for_single_file(tmp_path):
+    """단일 파일(분할 없음)은 progress_callback 미호출."""
+    f = str(tmp_path / "short.mp3")
+    open(f, "wb").close()
+
+    calls = []
+    with patch("vrt.transcribe._get_duration", return_value=float(CHUNK_MAX_SEC)), \
+         patch("vrt.transcribe._transcribe_file", return_value=[]):
+        transcribe(f, "sk-fake", progress_callback=lambda done, total: calls.append((done, total)))
+
+    assert calls == []

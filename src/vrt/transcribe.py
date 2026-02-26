@@ -1,4 +1,5 @@
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -21,11 +22,12 @@ class Segment:
 def transcribe(
     file_path: str,
     api_key: str,
+    progress_callback: Callable[[int, int], None] | None = None,
 ) -> list[Segment]:
     duration = _get_duration(file_path)
     if duration is None or duration <= CHUNK_MAX_SEC:
         return _transcribe_file(file_path, api_key)
-    return _transcribe_chunked(file_path, api_key)
+    return _transcribe_chunked(file_path, api_key, progress_callback)
 
 
 def _get_duration(file_path: str) -> float | None:
@@ -54,13 +56,19 @@ def _transcribe_file(file_path: str, api_key: str, offset: float = 0.0) -> list[
     return segs
 
 
-def _transcribe_chunked(file_path: str, api_key: str) -> list[Segment]:
+def _transcribe_chunked(
+    file_path: str,
+    api_key: str,
+    progress_callback: Callable[[int, int], None] | None = None,
+) -> list[Segment]:
     """150분 단위 분할 전사 + 화자 ID 재매핑."""
     all_segments: list[Segment] = []
     next_speaker_id = 1
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        for chunk_path, offset in _split_audio(file_path, CHUNK_MAX_SEC, Path(tmp_dir)):
+        chunks = _split_audio(file_path, CHUNK_MAX_SEC, Path(tmp_dir))
+        total = len(chunks)
+        for i, (chunk_path, offset) in enumerate(chunks):
             segs = _transcribe_file(chunk_path, api_key, offset=offset)
 
             # 이 청크의 화자 ID를 이전 청크와 겹치지 않는 새 ID로 재매핑
@@ -79,6 +87,9 @@ def _transcribe_chunked(file_path: str, api_key: str) -> list[Segment]:
                 )
                 for seg in segs
             )
+
+            if progress_callback:
+                progress_callback(i + 1, total)
 
     return all_segments
 
