@@ -6,7 +6,7 @@ import av
 from soniox.client import SonioxClient
 from soniox.types import CreateTranscriptionConfig, Token
 
-TRANSCRIPTION_TIMEOUT = 600  # seconds
+TRANSCRIPTION_TIMEOUT = 3_600  # seconds — per chunk (max 150min audio)
 CHUNK_MAX_SEC = 9_000        # 150 minutes — split threshold
 
 

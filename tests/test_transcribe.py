@@ -172,7 +172,7 @@ def test_transcribe_uses_delete_after(tmp_path):
 
     call_kwargs = client.stt.transcribe_and_wait_with_tokens.call_args.kwargs
     assert call_kwargs["delete_after"] is True
-    assert call_kwargs["wait_timeout_sec"] == 600
+    assert call_kwargs["wait_timeout_sec"] == 3_600
 
 
 # ── 청크 분할 ──────────────────────────────────────────────────────────────────
