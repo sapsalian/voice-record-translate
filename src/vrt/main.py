@@ -17,7 +17,8 @@ def main() -> None:
     class API:
         def open_file_dialog(self) -> list[str] | None:
             result = webview.windows[0].create_file_dialog(
-                webview.FileDialog.OPEN_MULTIPLE,
+                webview.FileDialog.OPEN,
+                allow_multiple=True,
                 file_types=("Audio Files (*.mp3;*.m4a;*.wav;*.ogg;*.flac;*.aac;*.wma;*.opus)",),
             )
             return list(result) if result else None
