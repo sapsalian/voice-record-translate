@@ -62,12 +62,6 @@ class ProcessingWorker:
                     progress_callback=_on_transcribe_progress,
                 )
 
-                if self._cancel_event.is_set():
-                    session.status = "failed"
-                    session.error_message = "취소됨"
-                    save_session(session)
-                    return
-
                 if not segments:
                     session.status = "failed"
                     session.error_message = "전사 결과가 없습니다."
@@ -76,6 +70,12 @@ class ProcessingWorker:
 
                 session.cp_segments = [asdict(s) for s in segments]
                 save_session(session)
+
+                if self._cancel_event.is_set():
+                    session.status = "failed"
+                    session.error_message = "취소됨"
+                    save_session(session)
+                    return
 
             # ── 번역 ──────────────────────────────────────────────────
             total_chunks = math.ceil(len(segments) / CHUNK_SIZE)
@@ -107,6 +107,8 @@ class ProcessingWorker:
                 session.progress = 50 + int((chunk_idx + 1) / total_chunks * 40)
                 session.progress_message = f"번역 중... ({chunk_idx + 1}/{total_chunks}청크)"
                 save_session(session)
+                if self._cancel_event.is_set():
+                    raise RuntimeError("취소됨")
 
             translated = translate(
                 segments,
