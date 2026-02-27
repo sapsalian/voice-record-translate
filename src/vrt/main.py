@@ -23,17 +23,6 @@ def main() -> None:
             )
             return list(result) if result else None
 
-        def open_viewer(self, session_id: str) -> None:
-            if os.environ.get("VRT_DEV"):
-                viewer_url = f"http://localhost:5173/viewer/{session_id}?port={port}"
-            else:
-                viewer_url = f"http://localhost:{port}/viewer/{session_id}"
-            # JS API 콜백은 Python 함수가 return될 때까지 메인 창 JS를 블로킹함.
-            # create_window()를 별도 스레드에서 실행해 즉시 return.
-            threading.Thread(
-                target=lambda: webview.create_window("VRT Viewer", viewer_url, width=1100, height=750),
-                daemon=True,
-            ).start()
 
     if os.environ.get("VRT_DEV"):
         url = f"http://localhost:5173?port={port}"

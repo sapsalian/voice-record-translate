@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { SessionList } from '@/components/SessionList';
 import { AddFilesModal } from '@/components/AddFilesModal';
@@ -15,7 +16,6 @@ declare global {
     pywebview?: {
       api: {
         open_file_dialog(): Promise<string[] | null>;
-        open_viewer(sessionId: string): Promise<void>;
       };
     };
   }
@@ -31,6 +31,7 @@ type ModalData = {
 };
 
 export function MainPage({ onSettingsOpen }: Props) {
+  const navigate = useNavigate();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [modalData, setModalData] = useState<ModalData | null>(null);
@@ -94,13 +95,8 @@ export function MainPage({ onSettingsOpen }: Props) {
     setSessions((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
-  const handleViewSession = async (id: string) => {
-    if (window.pywebview?.api) {
-      await window.pywebview.api.open_viewer(id);
-    } else {
-      const flaskPort = new URLSearchParams(location.search).get('port') ?? '';
-      window.open(`/viewer/${id}?port=${flaskPort}`, '_blank');
-    }
+  const handleViewSession = (id: string) => {
+    navigate('/viewer/' + id);
   };
 
   const handleAddFile = async () => {

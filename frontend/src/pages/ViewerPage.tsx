@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { TranscriptPanel } from '@/components/TranscriptPanel';
 import { fetchSession } from '@/api/client';
@@ -7,6 +7,7 @@ import { API_BASE } from '@/api/client';
 import type { Session } from '@/types/session';
 
 export function ViewerPage() {
+  const navigate = useNavigate();
   const { sessionId } = useParams<{ sessionId: string }>();
   const [session, setSession] = useState<Session | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -46,7 +47,13 @@ export function ViewerPage() {
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
       {/* Header */}
-      <header className="shrink-0 border-b px-4 h-14 flex items-center">
+      <header className="shrink-0 border-b px-4 h-14 flex items-center gap-3">
+        <button
+          onClick={() => navigate('/')}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
+        >
+          ← 목록으로
+        </button>
         <h1 className="font-semibold truncate">{session.title}</h1>
       </header>
 
