@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Props {
   src: string;
@@ -116,15 +118,32 @@ export function AudioPlayer({ src, onTimeUpdate }: Props) {
 
       {/* Controls row */}
       <div className="flex items-center gap-2">
-        <Button size="sm" variant="ghost" className="w-8 h-8 p-0 shrink-0" onClick={() => seek(-5)}>
-          −5
-        </Button>
-        <Button size="sm" variant="ghost" className="w-8 h-8 p-0 shrink-0" onClick={togglePlay}>
-          {playing ? '⏸' : '▶'}
-        </Button>
-        <Button size="sm" variant="ghost" className="w-8 h-8 p-0 shrink-0" onClick={() => seek(5)}>
-          +5
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button size="sm" variant="ghost" className="w-8 h-8 p-0 shrink-0" onClick={() => seek(-5)}>
+              <SkipBack className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>5초 뒤로 (←)</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button size="sm" variant="ghost" className="w-9 h-9 p-0 shrink-0" onClick={togglePlay}>
+              {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{playing ? '일시정지 (Space)' : '재생 (Space)'}</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button size="sm" variant="ghost" className="w-8 h-8 p-0 shrink-0" onClick={() => seek(5)}>
+              <SkipForward className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>5초 앞으로 (→)</TooltipContent>
+        </Tooltip>
 
         <span className="text-xs text-muted-foreground tabular-nums shrink-0">
           {formatTime(currentTime)}
