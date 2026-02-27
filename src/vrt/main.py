@@ -23,6 +23,13 @@ def main() -> None:
             )
             return list(result) if result else None
 
+        def open_viewer(self, session_id: str) -> None:
+            if os.environ.get("VRT_DEV"):
+                viewer_url = f"http://localhost:5173/viewer/{session_id}?port={port}"
+            else:
+                viewer_url = f"http://localhost:{port}/viewer/{session_id}"
+            webview.create_window("VRT Viewer", viewer_url, width=1100, height=750)
+
     if os.environ.get("VRT_DEV"):
         url = f"http://localhost:5173?port={port}"
     else:

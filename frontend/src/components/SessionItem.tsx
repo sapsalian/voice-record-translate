@@ -10,6 +10,7 @@ interface Props {
   session: Session;
   onUpdate: (session: Session) => void;
   onDelete: (id: string) => void;
+  onView?: () => void;
 }
 
 function formatDuration(seconds: number): string {
@@ -25,7 +26,7 @@ function formatDate(isoString: string): string {
   return d.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-export function SessionItem({ session, onUpdate, onDelete }: Props) {
+export function SessionItem({ session, onUpdate, onDelete, onView }: Props) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(session.title);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -107,7 +108,10 @@ export function SessionItem({ session, onUpdate, onDelete }: Props) {
   };
 
   return (
-    <div className="group relative flex items-center gap-3 rounded-lg border px-4 py-3">
+    <div
+      className={`group relative flex items-center gap-3 rounded-lg border px-4 py-3 ${onView ? 'cursor-pointer hover:bg-accent/50 transition-colors' : ''}`}
+      onClick={onView}
+    >
       <div className="flex-1 min-w-0">
         {/* Title row */}
         <div className="flex items-center gap-2 mb-1">
@@ -117,6 +121,7 @@ export function SessionItem({ session, onUpdate, onDelete }: Props) {
               className="font-medium bg-transparent border-b border-primary outline-none flex-1 min-w-0"
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleSaveTitle();
                 if (e.key === 'Escape') handleCancelEdit();
@@ -207,7 +212,7 @@ export function SessionItem({ session, onUpdate, onDelete }: Props) {
               size="sm"
               variant="ghost"
               className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={() => setMenuOpen((v) => !v)}
+              onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
             >
               ⋯
             </Button>
@@ -215,7 +220,8 @@ export function SessionItem({ session, onUpdate, onDelete }: Props) {
               <div className="absolute right-0 top-full mt-1 z-50 bg-popover border rounded-md shadow-md py-1 min-w-[120px]">
                 <button
                   className="w-full text-left text-sm px-3 py-1.5 hover:bg-accent hover:text-accent-foreground"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setMenuOpen(false);
                     setIsEditingTitle(true);
                   }}
@@ -224,7 +230,8 @@ export function SessionItem({ session, onUpdate, onDelete }: Props) {
                 </button>
                 <button
                   className="w-full text-left text-sm px-3 py-1.5 hover:bg-accent hover:text-accent-foreground text-destructive"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setMenuOpen(false);
                     handleDelete();
                   }}

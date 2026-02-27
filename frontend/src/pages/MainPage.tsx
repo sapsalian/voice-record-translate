@@ -15,6 +15,7 @@ declare global {
     pywebview?: {
       api: {
         open_file_dialog(): Promise<string[] | null>;
+        open_viewer(sessionId: string): Promise<void>;
       };
     };
   }
@@ -93,6 +94,15 @@ export function MainPage({ onSettingsOpen }: Props) {
     setSessions((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
+  const handleViewSession = async (id: string) => {
+    if (window.pywebview?.api) {
+      await window.pywebview.api.open_viewer(id);
+    } else {
+      const flaskPort = new URLSearchParams(location.search).get('port') ?? '';
+      window.open(`/viewer/${id}?port=${flaskPort}`, '_blank');
+    }
+  };
+
   const handleAddFile = async () => {
     let paths: string[] | null = null;
 
@@ -131,7 +141,7 @@ export function MainPage({ onSettingsOpen }: Props) {
       </header>
 
       <main className="px-4 py-6">
-        <SessionList sessions={sessions} onUpdate={handleUpdate} onDelete={handleDelete} />
+        <SessionList sessions={sessions} onUpdate={handleUpdate} onDelete={handleDelete} onView={handleViewSession} />
       </main>
 
       {/* Drag-and-drop overlay */}
