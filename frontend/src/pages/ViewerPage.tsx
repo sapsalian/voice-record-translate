@@ -135,7 +135,7 @@ export function ViewerPage() {
             onClick={() => setIsFollowing(true)}
             className="absolute bottom-4 right-4 text-xs px-3 py-1.5 rounded-full bg-primary text-primary-foreground shadow-md"
           >
-            ↓ 따라가기
+            재생 위치로
           </button>
         )}
       </div>
