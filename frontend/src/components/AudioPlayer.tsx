@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -6,6 +6,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 interface Props {
   src: string;
   onTimeUpdate?: (t: number) => void;
+}
+
+export interface AudioPlayerHandle {
+  seekTo(time: number): void;
 }
 
 function formatTime(sec: number): string {
@@ -18,7 +22,7 @@ function formatTime(sec: number): string {
 
 const SPEEDS = [0.75, 1, 1.25, 1.5, 2] as const;
 
-export function AudioPlayer({ src, onTimeUpdate }: Props) {
+export const AudioPlayer = forwardRef<AudioPlayerHandle, Props>(({ src, onTimeUpdate }, ref) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -26,6 +30,13 @@ export function AudioPlayer({ src, onTimeUpdate }: Props) {
   const [speed, setSpeed] = useState(1);
   const [isSeeking, setIsSeeking] = useState(false);
   const seekValueRef = useRef(0);
+
+  useImperativeHandle(ref, () => ({
+    seekTo(time: number) {
+      const audio = audioRef.current;
+      if (audio) audio.currentTime = time;
+    },
+  }));
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -184,4 +195,4 @@ export function AudioPlayer({ src, onTimeUpdate }: Props) {
       </div>
     </div>
   );
-}
+});

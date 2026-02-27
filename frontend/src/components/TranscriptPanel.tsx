@@ -1,10 +1,14 @@
+import { useEffect, useRef } from 'react';
 import { getSpeakerColor } from '@/constants/speakerColors';
 import type { Segment } from '@/types/session';
 
 interface Props {
   segments: Segment[];
   speakerNames: Record<string, string>;
-  currentTime?: number; // Phase 5에서 자동 스크롤에 사용
+  currentTime?: number;
+  isFollowing?: boolean;
+  onSegmentClick?: (time: number) => void;
+  onUserScroll?: () => void;
 }
 
 function formatTime(sec: number): string {
@@ -15,8 +19,10 @@ function formatTime(sec: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-export function TranscriptPanel({ segments, speakerNames, currentTime }: Props) {
-  // Phase 5에서 자동 스크롤 연결에 쓸 현재 세그먼트 인덱스 계산
+export function TranscriptPanel({ segments, speakerNames, currentTime, isFollowing, onSegmentClick, onUserScroll }: Props) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const segmentRefs = useRef<(HTMLDivElement | null)[]>([]);
+
   let currentIdx = -1;
   if (currentTime !== undefined) {
     for (let i = segments.length - 1; i >= 0; i--) {
@@ -27,6 +33,22 @@ export function TranscriptPanel({ segments, speakerNames, currentTime }: Props) 
     }
   }
 
+  useEffect(() => {
+    if (!isFollowing || currentIdx < 0) return;
+    segmentRefs.current[currentIdx]?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [currentIdx, isFollowing]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !onUserScroll) return;
+    el.addEventListener('wheel', onUserScroll, { passive: true });
+    el.addEventListener('touchstart', onUserScroll, { passive: true });
+    return () => {
+      el.removeEventListener('wheel', onUserScroll);
+      el.removeEventListener('touchstart', onUserScroll);
+    };
+  }, [onUserScroll]);
+
   if (segments.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
@@ -36,7 +58,7 @@ export function TranscriptPanel({ segments, speakerNames, currentTime }: Props) 
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div ref={containerRef} className="flex-1 overflow-y-auto">
       {segments.map((seg, i) => {
         const speakerName = seg.speaker
           ? (speakerNames[seg.speaker] ?? `화자 ${seg.speaker}`)
@@ -47,7 +69,9 @@ export function TranscriptPanel({ segments, speakerNames, currentTime }: Props) 
         return (
           <div
             key={i}
-            className={`px-6 py-3 border-b last:border-b-0 ${isActive ? 'bg-accent/40' : ''}`}
+            ref={el => { segmentRefs.current[i] = el; }}
+            onClick={() => onSegmentClick?.(seg.start)}
+            className={`px-6 py-3 border-b last:border-b-0 cursor-pointer hover:bg-accent/20 ${isActive ? 'bg-accent/40' : ''}`}
           >
             <div className="flex items-center gap-2 mb-1">
               {speakerName && (
