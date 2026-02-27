@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { SessionList } from '@/components/SessionList';
@@ -36,6 +36,7 @@ export function MainPage({ sessions, setSessions, onSettingsOpen }: Props) {
   const navigate = useNavigate();
   const [isDragOver, setIsDragOver] = useState(false);
   const [modalData, setModalData] = useState<ModalData | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 스크롤 위치 보존: 마운트 시 복원, 언마운트 시 저장
   useEffect(() => {
@@ -103,29 +104,33 @@ export function MainPage({ sessions, setSessions, onSettingsOpen }: Props) {
     navigate('/viewer/' + id);
   };
 
-  const handleAddFile = async () => {
-    let paths: string[] | null = null;
-
-    if (window.pywebview?.api) {
-      paths = await window.pywebview.api.open_file_dialog();
-    } else {
-      // Dev mode: prompt for path(s)
-      const input = window.prompt('파일 경로 입력 (쉼표 구분, 개발 모드)');
-      if (input) {
-        paths = input.split(',').map((s) => s.trim()).filter(Boolean);
-      }
-    }
-
-    if (!paths || paths.length === 0) return;
-
-    const captured = paths;
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (files.length === 0) return;
     setModalData({
-      fileNames: captured.map((p) => p.split('/').pop() ?? p),
+      fileNames: files.map((f) => f.name),
       handle: async (lang) => {
-        await Promise.all(captured.map((p) => startProcessing(p, lang)));
+        await Promise.all(files.map((f) => uploadAndProcess(f, lang)));
         setSessions(await fetchSessions());
       },
     });
+  };
+
+  const handleAddFile = async () => {
+    if (window.pywebview?.api) {
+      const paths = await window.pywebview.api.open_file_dialog();
+      if (!paths || paths.length === 0) return;
+      setModalData({
+        fileNames: paths.map((p) => p.split('/').pop() ?? p),
+        handle: async (lang) => {
+          await Promise.all(paths.map((p) => startProcessing(p, lang)));
+          setSessions(await fetchSessions());
+        },
+      });
+    } else {
+      fileInputRef.current?.click();
+    }
   };
 
   return (
@@ -150,6 +155,16 @@ export function MainPage({ sessions, setSessions, onSettingsOpen }: Props) {
           <p className="text-primary font-semibold text-xl">파일을 여기에 놓으세요</p>
         </div>
       )}
+
+      {/* Hidden file input for web mode */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="audio/*,.mp3,.m4a,.wav,.ogg,.flac,.aac,.wma,.opus"
+        multiple
+        className="hidden"
+        onChange={handleFileInputChange}
+      />
 
       {/* File confirmation modal */}
       {modalData && (
