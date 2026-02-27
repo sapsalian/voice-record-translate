@@ -22,6 +22,8 @@ declare global {
 }
 
 interface Props {
+  sessions: Session[];
+  setSessions: React.Dispatch<React.SetStateAction<Session[]>>;
   onSettingsOpen: () => void;
 }
 
@@ -30,16 +32,18 @@ type ModalData = {
   handle: (targetLang: string) => Promise<void>;
 };
 
-export function MainPage({ onSettingsOpen }: Props) {
+export function MainPage({ sessions, setSessions, onSettingsOpen }: Props) {
   const navigate = useNavigate();
-  const [sessions, setSessions] = useState<Session[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [modalData, setModalData] = useState<ModalData | null>(null);
 
+  // 스크롤 위치 보존: 마운트 시 복원, 언마운트 시 저장
   useEffect(() => {
-    fetchSessions()
-      .then(setSessions)
-      .catch(() => {});
+    const saved = sessionStorage.getItem('mainScrollY');
+    if (saved) window.scrollTo(0, Number(saved));
+    return () => {
+      sessionStorage.setItem('mainScrollY', String(window.scrollY));
+    };
   }, []);
 
   // Drag-and-drop: use counter to handle enter/leave on child elements
@@ -84,16 +88,16 @@ export function MainPage({ onSettingsOpen }: Props) {
       document.removeEventListener('dragover', onDragOver);
       document.removeEventListener('drop', onDrop);
     };
-  }, []);
+  }, [setSessions]);
 
   const handleUpdate = useCallback((updated: Session) => {
     setSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
-  }, []);
+  }, [setSessions]);
 
   const handleDelete = useCallback(async (id: string) => {
     await deleteSession(id).catch(() => {});
     setSessions((prev) => prev.filter((s) => s.id !== id));
-  }, []);
+  }, [setSessions]);
 
   const handleViewSession = (id: string) => {
     navigate('/viewer/' + id);
