@@ -1,18 +1,24 @@
 import os
 import threading
 
-import webview
-
 from .server import app, find_free_port
 
 
 def main() -> None:
-    port = find_free_port()
+    port = int(os.environ.get("VRT_PORT", 0)) or find_free_port()
+    web_mode = bool(os.environ.get("VRT_WEB"))
 
     threading.Thread(
-        target=lambda: app.run(port=port, use_reloader=False),
+        target=lambda: app.run(host="0.0.0.0", port=port, use_reloader=False),
         daemon=True,
     ).start()
+
+    if web_mode:
+        print(f"VRT running at http://0.0.0.0:{port}")
+        threading.Event().wait()
+        return
+
+    import webview
 
     class API:
         def open_file_dialog(self) -> list[str] | None:
@@ -22,7 +28,6 @@ def main() -> None:
                 file_types=("Audio Files (*.mp3;*.m4a;*.wav;*.ogg;*.flac;*.aac;*.wma;*.opus)",),
             )
             return list(result) if result else None
-
 
     if os.environ.get("VRT_DEV"):
         url = f"http://localhost:5173?port={port}"
