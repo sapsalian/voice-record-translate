@@ -112,7 +112,7 @@ class ProcessingWorker:
 
             translated = translate(
                 segments,
-                target_lang=self.config.target_lang,
+                target_lang=session.target_lang,
                 api_key=self.config.openai_api_key,
                 start_chunk=start_chunk,
                 initial_ctx=initial_ctx,
@@ -133,7 +133,7 @@ class ProcessingWorker:
 
             base = Path(self.file_path).with_suffix("")
             original_path = str(base) + ".original.srt"
-            translated_path = str(base) + f".{self.config.target_lang}.srt"
+            translated_path = str(base) + f".{session.target_lang}.srt"
 
             write_srt(
                 [(s.start, s.end, s.original) for s in translated],

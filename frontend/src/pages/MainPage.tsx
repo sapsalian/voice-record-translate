@@ -10,6 +10,7 @@ import {
   uploadAndProcess,
 } from '@/api/client';
 import type { Session } from '@/types/session';
+import { useT } from '@/LocaleContext';
 
 declare global {
   interface Window {
@@ -34,6 +35,7 @@ type ModalData = {
 
 export function MainPage({ sessions, setSessions, onSettingsOpen }: Props) {
   const navigate = useNavigate();
+  const t = useT();
   const [isDragOver, setIsDragOver] = useState(false);
   const [modalData, setModalData] = useState<ModalData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -138,8 +140,8 @@ export function MainPage({ sessions, setSessions, onSettingsOpen }: Props) {
       <header className="border-b px-4 h-14 flex items-center justify-between">
         <h1 className="font-semibold text-lg">VRT</h1>
         <div className="flex gap-2">
-          <Button onClick={handleAddFile}>파일 추가</Button>
-          <Button variant="ghost" size="icon" onClick={onSettingsOpen} aria-label="설정">
+          <Button onClick={handleAddFile}>{t('add_file')}</Button>
+          <Button variant="ghost" size="icon" onClick={onSettingsOpen} aria-label={t('settings')}>
             ⚙
           </Button>
         </div>
@@ -152,7 +154,7 @@ export function MainPage({ sessions, setSessions, onSettingsOpen }: Props) {
       {/* Drag-and-drop overlay */}
       {isDragOver && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-primary/10 border-4 border-dashed border-primary pointer-events-none">
-          <p className="text-primary font-semibold text-xl">파일을 여기에 놓으세요</p>
+          <p className="text-primary font-semibold text-xl">{t('drop_files')}</p>
         </div>
       )}
 

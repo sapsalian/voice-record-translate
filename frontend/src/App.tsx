@@ -8,13 +8,14 @@ type Page = 'main' | 'settings';
 interface Props {
   sessions: Session[];
   setSessions: React.Dispatch<React.SetStateAction<Session[]>>;
+  onUiLangChange: (lang: string) => void;
 }
 
-function App({ sessions, setSessions }: Props) {
+function App({ sessions, setSessions, onUiLangChange }: Props) {
   const [page, setPage] = useState<Page>('main');
 
   if (page === 'settings') {
-    return <SettingsPage onBack={() => setPage('main')} />;
+    return <SettingsPage onBack={() => setPage('main')} onUiLangChange={onUiLangChange} />;
   }
 
   return (

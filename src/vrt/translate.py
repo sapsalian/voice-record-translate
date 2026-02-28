@@ -13,6 +13,21 @@ LANGUAGES = {
     "ja": "Japanese",
     "zh": "Chinese",
     "vi": "Vietnamese",
+    "es": "Spanish",
+    "fr": "French",
+    "de": "German",
+    "pt": "Portuguese",
+    "ru": "Russian",
+    "ar": "Arabic",
+    "hi": "Hindi",
+    "it": "Italian",
+    "nl": "Dutch",
+    "th": "Thai",
+    "id": "Indonesian",
+    "tr": "Turkish",
+    "pl": "Polish",
+    "uk": "Ukrainian",
+    "sv": "Swedish",
 }
 
 CHUNK_SIZE = 100

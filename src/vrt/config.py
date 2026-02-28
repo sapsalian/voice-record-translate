@@ -10,7 +10,7 @@ CONFIG_FILE = CONFIG_DIR / "config.json"
 class Config:
     openai_api_key: str = ""
     soniox_api_key: str = ""
-    target_lang: str = "ko"
+    ui_lang: str = "ko"
 
 
 def load_config() -> Config:
@@ -19,6 +19,10 @@ def load_config() -> Config:
     data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
     if "api_key" in data:
         data["openai_api_key"] = data.pop("api_key")
+    if "target_lang" in data and "ui_lang" not in data:
+        data["ui_lang"] = data.pop("target_lang")
+    elif "target_lang" in data:
+        data.pop("target_lang")
     return Config(**{k: v for k, v in data.items() if k in Config.__dataclass_fields__})
 
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useT } from '@/LocaleContext';
 
 interface Props {
   currentName: string;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function SpeakerEditContent({ currentName, speakerId, allSpeakers, onRenameAll, onMergeAll, onReassign, onCancel }: Props) {
+  const t = useT();
   const [inputValue, setInputValue] = useState(currentName);
 
   const otherSpeakers = Object.entries(allSpeakers).filter(([id]) => id !== speakerId);
@@ -39,19 +41,19 @@ export function SpeakerEditContent({ currentName, speakerId, allSpeakers, onRena
           onClick={e => { e.stopPropagation(); isExisting ? onMergeAll(matchedEntry![0]) : onRenameAll(inputValue); }}
           className="flex-1 text-xs px-2 py-1 bg-primary text-primary-foreground rounded"
         >
-          전체 변경
+          {t('apply_all')}
         </button>
         <button
           onClick={e => { e.stopPropagation(); isExisting ? onReassign('', matchedEntry![0]) : onReassign(inputValue, null); }}
           className="flex-1 text-xs px-2 py-1 border rounded"
         >
-          이 부분만 변경
+          {t('apply_here')}
         </button>
         <button
           onClick={e => { e.stopPropagation(); onCancel(); }}
           className="text-xs px-2 py-1 text-muted-foreground"
         >
-          취소
+          {t('cancel')}
         </button>
       </div>
     </div>

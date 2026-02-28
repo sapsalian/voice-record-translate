@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
 import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useT } from '@/LocaleContext';
 
 interface Props {
   src: string;
@@ -23,6 +24,7 @@ function formatTime(sec: number): string {
 const SPEEDS = [0.75, 1, 1.25, 1.5, 2] as const;
 
 export const AudioPlayer = forwardRef<AudioPlayerHandle, Props>(({ src, onTimeUpdate }, ref) => {
+  const t = useT();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -144,7 +146,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, Props>(({ src, onTimeUp
               {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{playing ? '일시정지 (Space)' : '재생 (Space)'}</TooltipContent>
+          <TooltipContent>{playing ? t('pause_hint') : t('play_hint')}</TooltipContent>
         </Tooltip>
 
         <Tooltip>

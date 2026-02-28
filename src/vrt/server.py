@@ -71,7 +71,6 @@ def post_session():
         return jsonify({"error": "file_path is required"}), 400
 
     config = load_config()
-    config.target_lang = target_lang
     title = os.path.basename(file_path)
     session = create_session(title=title, audio_src=file_path, target_lang=target_lang)
 
@@ -159,8 +158,8 @@ def patch_config():
         config.openai_api_key = data["openai_api_key"]
     if "soniox_api_key" in data:
         config.soniox_api_key = data["soniox_api_key"]
-    if "target_lang" in data:
-        config.target_lang = data["target_lang"]
+    if "ui_lang" in data:
+        config.ui_lang = data["ui_lang"]
     save_config(config)
     return jsonify(dataclasses.asdict(config))
 

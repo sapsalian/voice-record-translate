@@ -7,6 +7,7 @@ import { TranscriptPanel } from '@/components/TranscriptPanel';
 import { fetchSession, updateSession } from '@/api/client';
 import { API_BASE } from '@/api/client';
 import type { Session } from '@/types/session';
+import { useT } from '@/LocaleContext';
 
 function exportTxt(session: Session, mode: 'translated' | 'original' | 'parallel') {
   function fmtTime(sec: number) {
@@ -32,6 +33,7 @@ function exportTxt(session: Session, mode: 'translated' | 'original' | 'parallel
 
 export function ViewerPage() {
   const navigate = useNavigate();
+  const t = useT();
   const { sessionId } = useParams<{ sessionId: string }>();
   const [session, setSession] = useState<Session | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -176,7 +178,7 @@ export function ViewerPage() {
   if (notFound) {
     return (
       <div className="min-h-screen flex items-center justify-center text-muted-foreground">
-        세션을 찾을 수 없습니다.
+        {t('not_found')}
       </div>
     );
   }
@@ -184,12 +186,18 @@ export function ViewerPage() {
   if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center text-muted-foreground text-sm">
-        불러오는 중...
+        {t('loading')}
       </div>
     );
   }
 
   const audioSrc = `${API_BASE}/api/sessions/${session.id}/audio`;
+
+  const exportLabels = {
+    translated: t('export_translated'),
+    original: t('export_original'),
+    parallel: t('export_parallel'),
+  };
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
@@ -199,7 +207,7 @@ export function ViewerPage() {
           onClick={() => navigate('/')}
           className="text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
         >
-          ← 목록으로
+          {t('back_to_list')}
         </button>
         <h1 className="font-semibold truncate flex-1">{session.title}</h1>
         <div className="flex items-center gap-2 shrink-0">
@@ -207,7 +215,7 @@ export function ViewerPage() {
             onClick={() => setShowOriginal(v => !v)}
             className={`text-xs px-2 py-1 rounded ${showOriginal ? 'bg-accent text-foreground' : 'text-muted-foreground'}`}
           >
-            원문
+            {t('original')}
           </button>
           <button
             onClick={() => setIsEditing(v => !v)}
@@ -230,7 +238,7 @@ export function ViewerPage() {
                     onClick={() => { exportTxt(session, mode); setShowExport(false); }}
                     className="block w-full px-4 py-2 text-left hover:bg-accent whitespace-nowrap"
                   >
-                    {{ translated: '번역문', original: '원문', parallel: '번역문 + 원문' }[mode]}
+                    {exportLabels[mode]}
                   </button>
                 ))}
               </div>
@@ -265,7 +273,7 @@ export function ViewerPage() {
             onClick={() => setIsFollowing(true)}
             className="absolute bottom-4 right-4 text-xs px-3 py-1.5 rounded-full bg-primary text-primary-foreground shadow-md"
           >
-            재생 위치로
+            {t('follow')}
           </button>
         )}
       </div>

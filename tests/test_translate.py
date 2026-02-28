@@ -2,10 +2,24 @@ from unittest.mock import MagicMock, patch
 
 from vrt.transcribe import Segment
 from vrt.translate import (
+    LANGUAGES,
     CorrectedSegment,
     CorrectionResult,
     translate,
 )
+
+EXPECTED_LANG_CODES = {
+    "ko", "en", "ja", "zh", "vi", "es", "fr", "de", "pt", "ru",
+    "ar", "hi", "it", "nl", "th", "id", "tr", "pl", "uk", "sv",
+}
+
+
+def test_languages_has_20_entries():
+    assert len(LANGUAGES) == 20
+
+
+def test_languages_contains_expected_codes():
+    assert EXPECTED_LANG_CODES == set(LANGUAGES.keys())
 
 
 # ── 헬퍼 ────────────────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { SessionItem } from '@/components/SessionItem';
 import type { Session } from '@/types/session';
+import { useT } from '@/LocaleContext';
 
 interface Props {
   sessions: Session[];
@@ -9,13 +10,14 @@ interface Props {
 }
 
 export function SessionList({ sessions, onUpdate, onDelete, onView }: Props) {
+  const t = useT();
   const processing = sessions.filter((s) => s.status === 'processing');
   const done = sessions.filter((s) => s.status !== 'processing');
 
   if (sessions.length === 0) {
     return (
       <div className="text-center text-muted-foreground py-20">
-        <p className="text-lg">파일을 추가해서 전사·번역을 시작하세요</p>
+        <p className="text-lg">{t('empty_hint')}</p>
       </div>
     );
   }
@@ -24,7 +26,7 @@ export function SessionList({ sessions, onUpdate, onDelete, onView }: Props) {
     <div className="space-y-6 max-w-2xl mx-auto">
       {processing.length > 0 && (
         <section>
-          <h2 className="text-sm font-medium text-muted-foreground mb-2">처리 중</h2>
+          <h2 className="text-sm font-medium text-muted-foreground mb-2">{t('section_processing')}</h2>
           <div className="space-y-2">
             {processing.map((s) => (
               <SessionItem key={s.id} session={s} onUpdate={onUpdate} onDelete={onDelete} onView={undefined} />
@@ -35,7 +37,7 @@ export function SessionList({ sessions, onUpdate, onDelete, onView }: Props) {
 
       {done.length > 0 && (
         <section>
-          <h2 className="text-sm font-medium text-muted-foreground mb-2">완료</h2>
+          <h2 className="text-sm font-medium text-muted-foreground mb-2">{t('section_done')}</h2>
           <div className="space-y-2">
             {done.map((s) => (
               <SessionItem

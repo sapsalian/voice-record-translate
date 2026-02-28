@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cancelSession, fetchSession, retrySession, updateSessionTitle } from '@/api/client';
 import type { Session } from '@/types/session';
+import { useT } from '@/LocaleContext';
 
 interface Props {
   session: Session;
@@ -23,12 +24,13 @@ function formatDuration(seconds: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-function formatDate(isoString: string): string {
+function formatDate(isoString: string, locale: string): string {
   const d = new Date(isoString);
-  return d.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleString(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 export function SessionItem({ session, onUpdate, onDelete, onView }: Props) {
+  const t = useT();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(session.title);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -88,7 +90,7 @@ export function SessionItem({ session, onUpdate, onDelete, onView }: Props) {
   };
 
   const handleDelete = async () => {
-    if (window.confirm('세션과 오디오 파일이 함께 삭제됩니다. 계속하시겠습니까?')) {
+    if (window.confirm(t('delete_confirm'))) {
       onDelete(session.id);
     }
   };
@@ -105,7 +107,7 @@ export function SessionItem({ session, onUpdate, onDelete, onView }: Props) {
       status: 'processing',
       error_message: null,
       progress: 0,
-      progress_message: '처리 재시작 중...',
+      progress_message: t('retrying'),
     });
   };
 
@@ -137,16 +139,16 @@ export function SessionItem({ session, onUpdate, onDelete, onView }: Props) {
             {session.target_lang.toUpperCase()}
           </Badge>
           {session.status === 'completed' && (
-            <Badge variant="secondary" className="shrink-0 text-xs">완료</Badge>
+            <Badge variant="secondary" className="shrink-0 text-xs">{t('status_completed')}</Badge>
           )}
           {session.status === 'failed' && (
-            <Badge variant="destructive" className="shrink-0 text-xs">실패</Badge>
+            <Badge variant="destructive" className="shrink-0 text-xs">{t('status_failed')}</Badge>
           )}
         </div>
 
         {/* Date and duration */}
         <div className="text-xs text-muted-foreground">
-          {formatDate(session.created_at)}
+          {formatDate(session.created_at, t('date_locale'))}
           {session.duration != null && (
             <span className="ml-2">{formatDuration(session.duration)}</span>
           )}
@@ -187,15 +189,15 @@ export function SessionItem({ session, onUpdate, onDelete, onView }: Props) {
             disabled={isCancelling}
           >
             {isCancelling ? (
-              <span className="animate-pulse">취소 중...</span>
-            ) : '취소'}
+              <span className="animate-pulse">{t('canceling')}</span>
+            ) : t('cancel')}
           </Button>
         )}
 
         {session.status === 'failed' && (
           <>
             <Button size="sm" variant="outline" onClick={handleRetry}>
-              재시도
+              {t('retry')}
             </Button>
             <Button
               size="sm"
@@ -203,7 +205,7 @@ export function SessionItem({ session, onUpdate, onDelete, onView }: Props) {
               className="text-muted-foreground"
               onClick={handleDelete}
             >
-              삭제
+              {t('delete')}
             </Button>
           </>
         )}
@@ -228,7 +230,7 @@ export function SessionItem({ session, onUpdate, onDelete, onView }: Props) {
                     setIsEditingTitle(true);
                   }}
                 >
-                  이름 변경
+                  {t('rename')}
                 </button>
                 <button
                   className="w-full text-left text-sm px-3 py-1.5 hover:bg-accent hover:text-accent-foreground text-destructive"
@@ -238,7 +240,7 @@ export function SessionItem({ session, onUpdate, onDelete, onView }: Props) {
                     handleDelete();
                   }}
                 >
-                  삭제
+                  {t('delete')}
                 </button>
               </div>
             )}

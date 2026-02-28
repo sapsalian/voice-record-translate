@@ -3,6 +3,7 @@ import { Pencil } from 'lucide-react';
 import { getSpeakerColor } from '@/constants/speakerColors';
 import type { Segment } from '@/types/session';
 import { SpeakerEditContent } from './SpeakerEditPopup';
+import { useT } from '@/LocaleContext';
 
 const isTouchDevice = window.matchMedia('(hover: none)').matches;
 
@@ -33,6 +34,7 @@ export function TranscriptPanel({
   segments, speakerNames, currentTime, isFollowing, onSegmentClick, onUserScroll,
   isEditing, showOriginal, onSpeakerRenameAll, onSpeakerMergeAll, onSpeakerReassign, onSegmentEdit,
 }: Props) {
+  const t = useT();
   const containerRef = useRef<HTMLDivElement>(null);
   const segmentRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [editingSpeakerIdx, setEditingSpeakerIdx] = useState<number | null>(null);
@@ -72,7 +74,7 @@ export function TranscriptPanel({
   if (segments.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-        대본이 없습니다.
+        {t('no_transcript')}
       </div>
     );
   }
@@ -81,7 +83,7 @@ export function TranscriptPanel({
     <div ref={containerRef} className="flex-1 overflow-y-auto">
       {segments.map((seg, i) => {
         const speakerName = seg.speaker
-          ? (speakerNames[seg.speaker] ?? `화자 ${seg.speaker}`)
+          ? (speakerNames[seg.speaker] ?? t('speaker', seg.speaker))
           : null;
         const colorClass = getSpeakerColor(seg.speaker);
         const isActive = i === currentIdx;
@@ -167,13 +169,13 @@ export function TranscriptPanel({
                     onClick={() => { onSegmentEdit?.(i, editValue); setEditingSegIdx(null); }}
                     className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded"
                   >
-                    저장
+                    {t('save')}
                   </button>
                   <button
                     onClick={() => setEditingSegIdx(null)}
                     className="text-xs px-2 py-1 text-muted-foreground"
                   >
-                    취소
+                    {t('cancel')}
                   </button>
                 </div>
               </div>
