@@ -1,11 +1,34 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Download, Pencil } from 'lucide-react';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import type { AudioPlayerHandle } from '@/components/AudioPlayer';
 import { TranscriptPanel } from '@/components/TranscriptPanel';
-import { fetchSession } from '@/api/client';
+import { fetchSession, updateSession } from '@/api/client';
 import { API_BASE } from '@/api/client';
 import type { Session } from '@/types/session';
+
+function exportTxt(session: Session, mode: 'translated' | 'original' | 'parallel') {
+  function fmtTime(sec: number) {
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = Math.floor(sec % 60);
+    return h > 0
+      ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+      : `${m}:${String(s).padStart(2, '0')}`;
+  }
+  const blocks = session.segments.map(seg => {
+    const spk = seg.speaker ? (session.speaker_names[seg.speaker] ?? seg.speaker) : null;
+    const header = `[${fmtTime(seg.start)}]${spk ? ' ' + spk : ''}`;
+    if (mode === 'translated') return `${header}\n${seg.translated}`;
+    if (mode === 'original')   return `${header}\n${seg.original}`;
+    return `${header}\n${seg.translated}\n(${seg.original})`;
+  });
+  const text = blocks.join('\n\n');
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${session.title}.txt`; a.click();
+  URL.revokeObjectURL(url);
+}
 
 export function ViewerPage() {
   const navigate = useNavigate();
@@ -14,10 +37,14 @@ export function ViewerPage() {
   const [notFound, setNotFound] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [isFollowing, setIsFollowing] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [showOriginal, setShowOriginal] = useState(false);
+  const [showExport, setShowExport] = useState(false);
 
   const audioRef = useRef<AudioPlayerHandle>(null);
   const currentTimeRef = useRef(0);
   const currentIdxRef = useRef(-1);
+  const exportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
 
@@ -45,6 +72,18 @@ export function ViewerPage() {
     }
     currentIdxRef.current = idx;
   });
+
+  // Close export dropdown on outside click
+  useEffect(() => {
+    if (!showExport) return;
+    const handler = (e: MouseEvent) => {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setShowExport(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showExport]);
 
   // J/K keyboard shortcuts
   useEffect(() => {
@@ -84,6 +123,45 @@ export function ViewerPage() {
     setIsFollowing(true);
   };
 
+  const handleSpeakerRenameAll = async (speakerId: string, newName: string) => {
+    if (!session) return;
+    const newNames = { ...session.speaker_names, [speakerId]: newName };
+    const updated = await updateSession(session.id, { speaker_names: newNames });
+    setSession(updated);
+  };
+
+  const handleSpeakerReassign = async (segIdx: number, targetName: string, fromDropdown: string | null) => {
+    if (!session) return;
+    let targetId: string = fromDropdown ?? '';
+    const newNames = { ...session.speaker_names };
+
+    if (!targetId) {
+      const match = Object.entries(newNames).find(([, name]) => name === targetName);
+      if (match) {
+        targetId = match[0];
+      } else {
+        const numIds = Object.keys(newNames).map(Number).filter(n => !isNaN(n));
+        targetId = String(numIds.length > 0 ? Math.max(...numIds) + 1 : 1);
+        newNames[targetId] = targetName;
+      }
+    }
+
+    const newSegments = session.segments.map((s, i) =>
+      i === segIdx ? { ...s, speaker: targetId } : s
+    );
+    const updated = await updateSession(session.id, { speaker_names: newNames, segments: newSegments });
+    setSession(updated);
+  };
+
+  const handleSegmentEdit = async (segIdx: number, newTranslated: string) => {
+    if (!session) return;
+    const newSegments = session.segments.map((s, i) =>
+      i === segIdx ? { ...s, translated: newTranslated } : s
+    );
+    const updated = await updateSession(session.id, { segments: newSegments });
+    setSession(updated);
+  };
+
   if (notFound) {
     return (
       <div className="min-h-screen flex items-center justify-center text-muted-foreground">
@@ -112,7 +190,42 @@ export function ViewerPage() {
         >
           ← 목록으로
         </button>
-        <h1 className="font-semibold truncate">{session.title}</h1>
+        <h1 className="font-semibold truncate flex-1">{session.title}</h1>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setShowOriginal(v => !v)}
+            className={`text-xs px-2 py-1 rounded ${showOriginal ? 'bg-accent text-foreground' : 'text-muted-foreground'}`}
+          >
+            원문
+          </button>
+          <button
+            onClick={() => setIsEditing(v => !v)}
+            className={`p-1 rounded ${isEditing ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+          <div ref={exportRef} className="relative">
+            <button
+              onClick={() => setShowExport(v => !v)}
+              className="p-1 text-muted-foreground hover:text-foreground"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+            {showExport && (
+              <div className="absolute right-0 top-full mt-1 bg-popover border rounded shadow-md z-10 text-sm">
+                {(['translated', 'original', 'parallel'] as const).map(mode => (
+                  <button
+                    key={mode}
+                    onClick={() => { exportTxt(session, mode); setShowExport(false); }}
+                    className="block w-full px-4 py-2 text-left hover:bg-accent whitespace-nowrap"
+                  >
+                    {{ translated: '번역문', original: '원문', parallel: '번역문 + 원문' }[mode]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </header>
 
       {/* Audio Player */}
@@ -129,6 +242,11 @@ export function ViewerPage() {
           isFollowing={isFollowing}
           onSegmentClick={handleSegmentClick}
           onUserScroll={() => setIsFollowing(false)}
+          isEditing={isEditing}
+          showOriginal={showOriginal}
+          onSpeakerRenameAll={handleSpeakerRenameAll}
+          onSpeakerReassign={handleSpeakerReassign}
+          onSegmentEdit={handleSegmentEdit}
         />
         {!isFollowing && (
           <button

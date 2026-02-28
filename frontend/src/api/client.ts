@@ -65,6 +65,18 @@ export async function updateSessionTitle(id: string, title: string): Promise<Ses
   return resp.json();
 }
 
+export async function updateSession(
+  id: string,
+  patch: { speaker_names?: Record<string, string>; segments?: import('../types/session').Segment[] }
+): Promise<Session> {
+  const resp = await fetch(`${API_BASE}/api/sessions/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  return resp.json();
+}
+
 export async function fetchConfig(): Promise<Config> {
   const resp = await fetch(`${API_BASE}/api/config`);
   return resp.json();

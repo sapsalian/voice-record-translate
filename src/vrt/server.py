@@ -126,6 +126,10 @@ def patch_session(session_id: str):
     data = request.get_json() or {}
     if "title" in data:
         session.title = data["title"]
+    if "speaker_names" in data:
+        session.speaker_names = data["speaker_names"]
+    if "segments" in data:
+        session.segments = data["segments"]
     save_session(session)
     return jsonify(dataclasses.asdict(session))
 
