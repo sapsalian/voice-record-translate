@@ -3,7 +3,9 @@ __pycache__/
 .venv/
 *.egg-info/
 dist/
-build/
+build/dist/
+build/build/
+build/__pycache__/
 .env
 .claude/
 scripts/
