@@ -39,13 +39,13 @@ export function SpeakerEditContent({ currentName, speakerId, allSpeakers, onRena
           onClick={e => { e.stopPropagation(); isExisting ? onMergeAll(matchedEntry![0]) : onRenameAll(inputValue); }}
           className="flex-1 text-xs px-2 py-1 bg-primary text-primary-foreground rounded"
         >
-          {isExisting ? `${inputValue}로 전체 합치기` : '이름 변경'}
+          전체 변경
         </button>
         <button
           onClick={e => { e.stopPropagation(); isExisting ? onReassign('', matchedEntry![0]) : onReassign(inputValue, null); }}
           className="flex-1 text-xs px-2 py-1 border rounded"
         >
-          {isExisting ? `이 부분만 ${inputValue}로` : '이 부분만 새 화자로'}
+          이 부분만 변경
         </button>
         <button
           onClick={e => { e.stopPropagation(); onCancel(); }}
