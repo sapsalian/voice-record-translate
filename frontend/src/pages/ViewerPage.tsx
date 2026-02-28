@@ -153,6 +153,17 @@ export function ViewerPage() {
     setSession(updated);
   };
 
+  const handleSpeakerMergeAll = async (speakerId: string, targetId: string) => {
+    if (!session) return;
+    const newSegments = session.segments.map(s =>
+      s.speaker === speakerId ? { ...s, speaker: targetId } : s
+    );
+    const newNames = { ...session.speaker_names };
+    delete newNames[speakerId];
+    const updated = await updateSession(session.id, { speaker_names: newNames, segments: newSegments });
+    setSession(updated);
+  };
+
   const handleSegmentEdit = async (segIdx: number, newTranslated: string) => {
     if (!session) return;
     const newSegments = session.segments.map((s, i) =>
@@ -245,6 +256,7 @@ export function ViewerPage() {
           isEditing={isEditing}
           showOriginal={showOriginal}
           onSpeakerRenameAll={handleSpeakerRenameAll}
+          onSpeakerMergeAll={handleSpeakerMergeAll}
           onSpeakerReassign={handleSpeakerReassign}
           onSegmentEdit={handleSegmentEdit}
         />

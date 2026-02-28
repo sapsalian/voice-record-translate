@@ -5,57 +5,47 @@ interface Props {
   speakerId: string;
   allSpeakers: Record<string, string>;
   onRenameAll: (newName: string) => void;
-  onReassign: (name: string, dropdownId: string | null) => void;
+  onMergeAll: (targetId: string) => void;
+  onReassign: (name: string, targetId: string | null) => void;
   onCancel: () => void;
 }
 
-export function SpeakerEditContent({ currentName, speakerId, allSpeakers, onRenameAll, onReassign, onCancel }: Props) {
+export function SpeakerEditContent({ currentName, speakerId, allSpeakers, onRenameAll, onMergeAll, onReassign, onCancel }: Props) {
   const [inputValue, setInputValue] = useState(currentName);
-  const [selectedId, setSelectedId] = useState('');
 
   const otherSpeakers = Object.entries(allSpeakers).filter(([id]) => id !== speakerId);
+  const matchedEntry = otherSpeakers.find(([, name]) => name === inputValue);
+  const isExisting = !!matchedEntry;
+  const listId = `speaker-list-${speakerId}`;
 
   return (
     <div className="flex flex-col gap-2 min-w-48">
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground whitespace-nowrap">{currentName} →</span>
         <input
-          type="text"
           value={inputValue}
           onChange={e => setInputValue(e.target.value)}
           onClick={e => e.stopPropagation()}
+          list={listId}
           className="flex-1 text-xs border rounded px-2 py-1 bg-background"
           autoFocus
         />
+        <datalist id={listId}>
+          {otherSpeakers.map(([id, name]) => <option key={id} value={name} />)}
+        </datalist>
       </div>
-      {otherSpeakers.length > 0 && (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground whitespace-nowrap">이 부분만:</span>
-          <select
-            value={selectedId}
-            onChange={e => setSelectedId(e.target.value)}
-            onClick={e => e.stopPropagation()}
-            className="flex-1 text-xs border rounded px-1 py-1 bg-background"
-          >
-            <option value="">직접 입력</option>
-            {otherSpeakers.map(([id, name]) => (
-              <option key={id} value={id}>{name}</option>
-            ))}
-          </select>
-        </div>
-      )}
       <div className="flex gap-1 mt-1">
         <button
-          onClick={e => { e.stopPropagation(); onRenameAll(inputValue); }}
+          onClick={e => { e.stopPropagation(); isExisting ? onMergeAll(matchedEntry![0]) : onRenameAll(inputValue); }}
           className="flex-1 text-xs px-2 py-1 bg-primary text-primary-foreground rounded"
         >
-          모두 변경
+          {isExisting ? `${inputValue}로 전체 합치기` : '이름 변경'}
         </button>
         <button
-          onClick={e => { e.stopPropagation(); selectedId ? onReassign('', selectedId) : onReassign(inputValue, null); }}
+          onClick={e => { e.stopPropagation(); isExisting ? onReassign('', matchedEntry![0]) : onReassign(inputValue, null); }}
           className="flex-1 text-xs px-2 py-1 border rounded"
         >
-          이 부분만
+          {isExisting ? `이 부분만 ${inputValue}로` : '이 부분만 새 화자로'}
         </button>
         <button
           onClick={e => { e.stopPropagation(); onCancel(); }}

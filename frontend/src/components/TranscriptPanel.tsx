@@ -16,6 +16,7 @@ interface Props {
   isEditing?: boolean;
   showOriginal?: boolean;
   onSpeakerRenameAll?: (speakerId: string, newName: string) => void;
+  onSpeakerMergeAll?: (speakerId: string, targetId: string) => void;
   onSpeakerReassign?: (segIdx: number, targetName: string, fromDropdown: string | null) => void;
   onSegmentEdit?: (segIdx: number, newTranslated: string) => void;
 }
@@ -30,7 +31,7 @@ function formatTime(sec: number): string {
 
 export function TranscriptPanel({
   segments, speakerNames, currentTime, isFollowing, onSegmentClick, onUserScroll,
-  isEditing, showOriginal, onSpeakerRenameAll, onSpeakerReassign, onSegmentEdit,
+  isEditing, showOriginal, onSpeakerRenameAll, onSpeakerMergeAll, onSpeakerReassign, onSegmentEdit,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const segmentRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -123,6 +124,7 @@ export function TranscriptPanel({
                         speakerId={seg.speaker!}
                         allSpeakers={speakerNames}
                         onRenameAll={newName => { onSpeakerRenameAll?.(seg.speaker!, newName); setEditingSpeakerIdx(null); }}
+                        onMergeAll={targetId => { onSpeakerMergeAll?.(seg.speaker!, targetId); setEditingSpeakerIdx(null); }}
                         onReassign={(name, dropdownId) => { onSpeakerReassign?.(i, name, dropdownId); setEditingSpeakerIdx(null); }}
                         onCancel={() => setEditingSpeakerIdx(null)}
                       />
@@ -143,6 +145,7 @@ export function TranscriptPanel({
                   speakerId={seg.speaker!}
                   allSpeakers={speakerNames}
                   onRenameAll={newName => { onSpeakerRenameAll?.(seg.speaker!, newName); setEditingSpeakerIdx(null); }}
+                  onMergeAll={targetId => { onSpeakerMergeAll?.(seg.speaker!, targetId); setEditingSpeakerIdx(null); }}
                   onReassign={(name, dropdownId) => { onSpeakerReassign?.(i, name, dropdownId); setEditingSpeakerIdx(null); }}
                   onCancel={() => setEditingSpeakerIdx(null)}
                 />
