@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+
+const isTouchDevice = window.matchMedia('(hover: none)').matches;
 import { Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -211,7 +213,7 @@ export function SessionItem({ session, onUpdate, onDelete, onView }: Props) {
             <Button
               size="sm"
               variant="ghost"
-              className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+              className={`text-muted-foreground transition-opacity ${isTouchDevice ? '' : 'opacity-0 group-hover:opacity-100'}`}
               onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
             >
               ⋯
