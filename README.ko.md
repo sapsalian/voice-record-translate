@@ -44,12 +44,19 @@
 
 1. `VRT-macos.zip` 압축 해제
 2. `VRT.app`을 응용 프로그램 폴더로 이동
-3. 첫 실행 시 "개발자를 확인할 수 없음" 경고 → **VRT.app 우클릭 → 열기**
+3. 실행 시 **"개발자를 확인할 수 없음"** 경고가 뜨면:
+   - **시스템 설정 → 개인 정보 보호 및 보안** 열기
+   - 하단의 VRT 차단 메시지 확인
+   - **"그래도 열기"** 클릭
+   - 팝업에서 **"열기"** 클릭
 
 ### Windows 설치
 
 1. `VRT-windows.zip` 압축 해제
 2. `VRT/VRT.exe` 실행
+3. **Windows SmartScreen** 경고가 뜨면:
+   - **"추가 정보"** 클릭
+   - **"실행"** 클릭
 
 > Windows 10 1803 미만이면 [Edge WebView2 런타임](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) 별도 설치 필요.
 

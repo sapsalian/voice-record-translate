@@ -30,12 +30,19 @@ Lade eine Audiodatei hoch → Transkription mit Sprechertrennung → Übersetzun
 
 1. `VRT-macos.zip` entpacken
 2. `VRT.app` in den Ordner „Programme" verschieben
-3. Beim ersten Start: Falls „Entwickler kann nicht überprüft werden" erscheint → **Rechtsklick auf VRT.app → Öffnen**
+3. Falls beim Start **„Entwickler kann nicht überprüft werden"** erscheint:
+   - **Systemeinstellungen → Datenschutz & Sicherheit** öffnen
+   - Nach unten scrollen, bis die VRT-Meldung erscheint
+   - **„Trotzdem öffnen"** klicken
+   - Im Dialog **„Öffnen"** klicken
 
 ### Windows-Installation
 
 1. `VRT-windows.zip` entpacken
 2. `VRT/VRT.exe` ausführen
+3. Falls **Windows SmartScreen** eine Warnung anzeigt:
+   - **„Weitere Informationen"** klicken
+   - **„Trotzdem ausführen"** klicken
 
 > Bei Windows 10 Version 1803 oder älter: [Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) separat installieren.
 

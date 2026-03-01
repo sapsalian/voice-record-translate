@@ -30,12 +30,19 @@ Importez un fichier audio → transcription avec identification des locuteurs �
 
 1. Décompressez `VRT-macos.zip`
 2. Déplacez `VRT.app` dans le dossier Applications
-3. Au premier lancement, si vous voyez « le développeur ne peut pas être vérifié » → **faites un clic droit sur VRT.app → Ouvrir**
+3. Si au lancement apparaît **« le développeur ne peut pas être vérifié »** :
+   - Ouvrez **Réglages système → Confidentialité et sécurité**
+   - Faites défiler vers le bas pour trouver le message de blocage de VRT
+   - Cliquez sur **« Ouvrir quand même »**
+   - Confirmez en cliquant **« Ouvrir »**
 
 ### Installation sur Windows
 
 1. Décompressez `VRT-windows.zip`
 2. Lancez `VRT/VRT.exe`
+3. Si **Windows SmartScreen** affiche un avertissement :
+   - Cliquez sur **« Informations complémentaires »**
+   - Cliquez sur **« Exécuter quand même »**
 
 > Si vous utilisez Windows 10 version 1803 ou antérieure, installez séparément le [Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
 

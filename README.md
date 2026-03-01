@@ -44,12 +44,19 @@ Upload an audio file → speaker-separated transcription → translated — all 
 
 1. Unzip `VRT-macos.zip`
 2. Move `VRT.app` to the Applications folder
-3. On first launch, if you see "developer cannot be verified" → **right-click VRT.app → Open**
+3. Double-click to launch — if you see **"developer cannot be verified"**:
+   - Open **System Settings → Privacy & Security**
+   - Scroll down to find the blocked VRT message
+   - Click **"Open Anyway"**
+   - Confirm by clicking **"Open"** in the dialog
 
 ### Windows Installation
 
 1. Unzip `VRT-windows.zip`
 2. Run `VRT/VRT.exe`
+3. If **Windows SmartScreen** blocks the app:
+   - Click **"More info"**
+   - Click **"Run anyway"**
 
 > If you're on Windows 10 version 1803 or earlier, install [Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) separately.
 

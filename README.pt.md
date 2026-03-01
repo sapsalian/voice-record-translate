@@ -30,12 +30,19 @@ Faça upload de um arquivo de áudio → transcrição com separação de falant
 
 1. Descompacte `VRT-macos.zip`
 2. Mova `VRT.app` para a pasta Aplicativos
-3. Na primeira execução, se aparecer "desenvolvedor não verificado" → **clique com o botão direito em VRT.app → Abrir**
+3. Se aparecer **"desenvolvedor não pode ser verificado"**:
+   - Abra **Configurações do Sistema → Privacidade e Segurança**
+   - Role para baixo até encontrar a mensagem de bloqueio do VRT
+   - Clique em **"Abrir mesmo assim"**
+   - Confirme clicando em **"Abrir"**
 
 ### Instalação no Windows
 
 1. Descompacte `VRT-windows.zip`
 2. Execute `VRT/VRT.exe`
+3. Se o **Windows SmartScreen** exibir um aviso:
+   - Clique em **"Mais informações"**
+   - Clique em **"Executar mesmo assim"**
 
 > Se estiver no Windows 10 versão 1803 ou anterior, instale o [Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) separadamente.
 

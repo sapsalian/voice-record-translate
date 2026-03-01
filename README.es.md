@@ -30,12 +30,19 @@ Sube un archivo de audio → transcripción con separación de hablantes → tra
 
 1. Descomprime `VRT-macos.zip`
 2. Mueve `VRT.app` a la carpeta Aplicaciones
-3. En el primer inicio, si ves "el desarrollador no se puede verificar" → **haz clic derecho en VRT.app → Abrir**
+3. Si al iniciar aparece **"no se puede verificar el desarrollador"**:
+   - Abre **Configuración del Sistema → Privacidad y Seguridad**
+   - Desplázate hacia abajo hasta encontrar el mensaje de VRT bloqueado
+   - Haz clic en **"Abrir de todas formas"**
+   - Confirma haciendo clic en **"Abrir"**
 
 ### Instalación en Windows
 
 1. Descomprime `VRT-windows.zip`
 2. Ejecuta `VRT/VRT.exe`
+3. Si aparece la advertencia de **Windows SmartScreen**:
+   - Haz clic en **"Más información"**
+   - Haz clic en **"Ejecutar de todas formas"**
 
 > Si usas Windows 10 versión 1803 o anterior, instala el [Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) por separado.
 

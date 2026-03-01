@@ -30,12 +30,19 @@
 
 1. 解压 `VRT-macos.zip`
 2. 将 `VRT.app` 移动到应用程序文件夹
-3. 首次启动时若出现"无法验证开发者"提示 → **右键点击 VRT.app → 打开**
+3. 启动时若出现 **"无法验证开发者"** 提示：
+   - 打开 **系统设置 → 隐私与安全性**
+   - 向下滚动找到 VRT 被阻止的提示
+   - 点击 **"仍然打开"**
+   - 在弹出对话框中点击 **"打开"**
 
 ### Windows 安装
 
 1. 解压 `VRT-windows.zip`
 2. 运行 `VRT/VRT.exe`
+3. 若出现 **Windows SmartScreen** 警告：
+   - 点击 **"更多信息"**
+   - 点击 **"仍要运行"**
 
 > 若 Windows 10 版本低于1803，请另行安装 [Edge WebView2 运行时](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)。
 
