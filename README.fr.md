@@ -1,0 +1,105 @@
+[English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [中文](README.zh.md) | [Español](README.es.md) | [Deutsch](README.de.md) | [Português](README.pt.md)
+
+# VRT — Voice Record & Translate
+
+Importez un fichier audio → transcription avec identification des locuteurs → traduction — tout en une seule application de bureau.
+
+---
+
+## Fonctionnalités
+
+- Transcription audio (MP3, M4A, WAV, OGG, FLAC, AAC, WMA, Opus)
+- Diarisation des locuteurs — détection automatique du Locuteur 1 / Locuteur 2, renommage pris en charge
+- Traitement automatique par segments pour les fichiers de plus de 150 minutes
+- Correction + traduction en une seule étape — 20 langues prises en charge
+- Export de sous-titres SRT (original / traduit)
+- Sauvegarde et reprise de session
+
+---
+
+## Téléchargement
+
+→ Téléchargez la dernière version depuis **[Releases](https://github.com/sapsalian/voice-record-translate/releases)**
+
+| OS | Fichier |
+|----|---------|
+| macOS | `VRT-macos.zip` |
+| Windows | `VRT-windows.zip` |
+
+### Installation sur macOS
+
+1. Décompressez `VRT-macos.zip`
+2. Déplacez `VRT.app` dans le dossier Applications
+3. Au premier lancement, si vous voyez « le développeur ne peut pas être vérifié » → **faites un clic droit sur VRT.app → Ouvrir**
+
+### Installation sur Windows
+
+1. Décompressez `VRT-windows.zip`
+2. Lancez `VRT/VRT.exe`
+
+> Si vous utilisez Windows 10 version 1803 ou antérieure, installez séparément le [Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
+
+---
+
+## Configuration
+
+Saisissez vos clés API dans l'écran des paramètres au premier lancement.
+
+| Élément | Fournisseur |
+|---------|-------------|
+| Soniox API Key | [soniox.com](https://soniox.com) |
+| OpenAI API Key | [platform.openai.com](https://platform.openai.com) |
+
+> **Note de facturation** : La transcription (Soniox) et la traduction (OpenAI GPT-4.1) utilisent toutes deux des API payantes.
+> Les paramètres sont enregistrés dans `~/.vrt/config.json`.
+
+---
+
+## Développement
+
+### Prérequis
+
+- Python 3.10+
+- Node.js 20+
+
+### Installation et exécution
+
+```bash
+# Installer les dépendances
+pip install -e ".[dev]"
+
+# Installer les dépendances du frontend
+cd frontend && npm install && cd ..
+
+# Mode développement (hot-reload du frontend)
+# Terminal 1
+cd frontend && npm run dev
+# Terminal 2
+VRT_DEV=1 vrt
+
+# Lancer les tests
+pytest tests/ -v
+
+# Compiler et lancer en production
+make run
+```
+
+### Compiler l'application (PyInstaller)
+
+```bash
+make build-app-macos    # → build/dist/VRT.app
+```
+
+Les compilations Windows s'exécutent automatiquement via GitHub Actions (lors d'un push de tag).
+
+---
+
+## Stack technique
+
+| Domaine | Technologie |
+|---------|-------------|
+| Backend | Python, Flask, pywebview |
+| Frontend | React, TypeScript, Tailwind CSS v4 |
+| Transcription | Soniox (diarisation des locuteurs) |
+| Traduction | OpenAI GPT-4.1 (Structured Output) |
+| Packaging | PyInstaller, GitHub Actions |

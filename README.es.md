@@ -1,0 +1,105 @@
+[English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [中文](README.zh.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt.md)
+
+# VRT — Voice Record & Translate
+
+Sube un archivo de audio → transcripción con separación de hablantes → traducción — todo en una aplicación de escritorio.
+
+---
+
+## Características
+
+- Transcripción de audio (MP3, M4A, WAV, OGG, FLAC, AAC, WMA, Opus)
+- Diarización de hablantes — detección automática de Hablante 1 / Hablante 2, con soporte para renombrar
+- Procesamiento automático por segmentos para archivos de más de 150 minutos
+- Corrección + traducción en un solo paso — compatible con 20 idiomas
+- Exportación de subtítulos SRT (original / traducido)
+- Guardado y reanudación de sesiones
+
+---
+
+## Descarga
+
+→ Descarga la última versión desde **[Releases](https://github.com/sapsalian/voice-record-translate/releases)**
+
+| SO | Archivo |
+|----|---------|
+| macOS | `VRT-macos.zip` |
+| Windows | `VRT-windows.zip` |
+
+### Instalación en macOS
+
+1. Descomprime `VRT-macos.zip`
+2. Mueve `VRT.app` a la carpeta Aplicaciones
+3. En el primer inicio, si ves "el desarrollador no se puede verificar" → **haz clic derecho en VRT.app → Abrir**
+
+### Instalación en Windows
+
+1. Descomprime `VRT-windows.zip`
+2. Ejecuta `VRT/VRT.exe`
+
+> Si usas Windows 10 versión 1803 o anterior, instala el [Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) por separado.
+
+---
+
+## Configuración
+
+Ingresa tus claves API en la pantalla de configuración al iniciar por primera vez.
+
+| Elemento | Proveedor |
+|----------|-----------|
+| Soniox API Key | [soniox.com](https://soniox.com) |
+| OpenAI API Key | [platform.openai.com](https://platform.openai.com) |
+
+> **Nota de facturación**: Tanto la transcripción (Soniox) como la traducción (OpenAI GPT-4.1) usan APIs de pago.
+> La configuración se guarda en `~/.vrt/config.json`.
+
+---
+
+## Desarrollo
+
+### Requisitos
+
+- Python 3.10+
+- Node.js 20+
+
+### Instalar y ejecutar
+
+```bash
+# Instalar dependencias
+pip install -e ".[dev]"
+
+# Instalar dependencias del frontend
+cd frontend && npm install && cd ..
+
+# Modo desarrollo (hot-reload del frontend)
+# Terminal 1
+cd frontend && npm run dev
+# Terminal 2
+VRT_DEV=1 vrt
+
+# Ejecutar pruebas
+pytest tests/ -v
+
+# Compilar y ejecutar en producción
+make run
+```
+
+### Compilar la aplicación (PyInstaller)
+
+```bash
+make build-app-macos    # → build/dist/VRT.app
+```
+
+Las compilaciones para Windows se ejecutan automáticamente mediante GitHub Actions (al hacer push de una etiqueta).
+
+---
+
+## Stack tecnológico
+
+| Área | Tecnología |
+|------|------------|
+| Backend | Python, Flask, pywebview |
+| Frontend | React, TypeScript, Tailwind CSS v4 |
+| Transcripción | Soniox (diarización de hablantes) |
+| Traducción | OpenAI GPT-4.1 (Structured Output) |
+| Empaquetado | PyInstaller, GitHub Actions |

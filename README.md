@@ -1,119 +1,119 @@
+[한국어](README.ko.md) | [日本語](README.ja.md) | [中文](README.zh.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt.md)
+
 # VRT — Voice Record & Translate
 
-음성 파일을 업로드하면 화자 분리 전사 + 번역까지 자동으로 처리해주는 데스크탑 앱.
-
-> Upload an audio file → speaker-separated transcription → translated — all in one desktop app.
+Upload an audio file → speaker-separated transcription → translated — all in one desktop app.
 
 ---
 
-<!-- 스크린샷 안내 (작성자 메모):
-  아래 3장을 캡처해서 추가 권장:
-  1. 메인 화면 — 세션 목록 + 새 파일 추가 버튼
-  2. 처리 중 화면 — 전사/번역 진행률 표시
-  3. 뷰어 화면 — 화자 구분된 원문 + 번역 병렬 표시
-  이미지 파일을 docs/screenshots/ 에 넣고 아래 주석을 해제하세요:
+<!-- Screenshot guide (author note):
+  Recommended: capture these 3 screenshots and add them:
+  1. Main screen — session list + add file button
+  2. Processing screen — transcription/translation progress
+  3. Viewer screen — speaker-separated original + translated side by side
+  Place images in docs/screenshots/ and uncomment below:
 
-  ![메인 화면](docs/screenshots/main.png)
-  ![처리 중](docs/screenshots/processing.png)
-  ![뷰어](docs/screenshots/viewer.png)
+  ![Main](docs/screenshots/main.png)
+  ![Processing](docs/screenshots/processing.png)
+  ![Viewer](docs/screenshots/viewer.png)
 -->
 
 ---
 
-## 주요 기능 / Features
+## Features
 
-- 음성 파일 전사 (MP3, M4A, WAV, OGG, FLAC, AAC, WMA, Opus)
-- 화자 분리 — 화자 1 / 화자 2 자동 구분 + 이름 변경 가능
-- 150분 초과 파일도 자동 분할 처리
-- 교정 + 번역 동시 수행 — 한국어, 영어, 일본어, 중국어, 베트남어
-- SRT 자막 파일 내보내기 (원문 / 번역문)
-- 세션 저장 및 재개
+- Audio transcription (MP3, M4A, WAV, OGG, FLAC, AAC, WMA, Opus)
+- Speaker diarization — auto-detect Speaker 1 / Speaker 2, rename supported
+- Automatic chunked processing for files over 150 minutes
+- Correction + translation in one step — supports 20 languages
+- Export SRT subtitle files (original / translated)
+- Session save & resume
 
 ---
 
-## 다운로드 / Download
+## Download
 
-→ **[Releases](https://github.com/sapsalian/voice-record-translate/releases)** 에서 최신 버전 다운로드
+→ Download the latest version from **[Releases](https://github.com/sapsalian/voice-record-translate/releases)**
 
-| OS | 파일 |
+| OS | File |
 |----|------|
 | macOS | `VRT-macos.zip` |
 | Windows | `VRT-windows.zip` |
 
-### macOS 설치
+### macOS Installation
 
-1. `VRT-macos.zip` 압축 해제
-2. `VRT.app`을 응용 프로그램 폴더로 이동
-3. 첫 실행 시 "개발자를 확인할 수 없음" 경고 → **VRT.app 우클릭 → 열기**
+1. Unzip `VRT-macos.zip`
+2. Move `VRT.app` to the Applications folder
+3. On first launch, if you see "developer cannot be verified" → **right-click VRT.app → Open**
 
-### Windows 설치
+### Windows Installation
 
-1. `VRT-windows.zip` 압축 해제
-2. `VRT/VRT.exe` 실행
+1. Unzip `VRT-windows.zip`
+2. Run `VRT/VRT.exe`
 
-> Windows 10 1803 미만이면 [Edge WebView2 런타임](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) 별도 설치 필요.
+> If you're on Windows 10 version 1803 or earlier, install [Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) separately.
 
 ---
 
-## 초기 설정 / Configuration
+## Configuration
 
-첫 실행 시 설정 화면에서 API 키를 입력해주세요.
+Enter your API keys in the settings screen on first launch.
 
-| 항목 | 발급처 |
-|------|--------|
+| Item | Provider |
+|------|----------|
 | Soniox API Key | [soniox.com](https://soniox.com) |
 | OpenAI API Key | [platform.openai.com](https://platform.openai.com) |
 
-> **과금 주의**: 전사(Soniox)와 번역(OpenAI GPT-4.1) 모두 유료 API입니다.
-> 설정은 `~/.vrt/config.json`에 저장됩니다.
+> **Billing note**: Both transcription (Soniox) and translation (OpenAI GPT-4.1) use paid APIs.
+> Settings are saved to `~/.vrt/config.json`.
 
 ---
 
-## 개발 환경 / Development
+## Development
 
-### 요구사항
+### Requirements
 
 - Python 3.10+
 - Node.js 20+
 
-### 설치 및 실행
+### Install & Run
 
 ```bash
-# 의존성 설치
+# Install dependencies
 pip install -e ".[dev]"
 
-# 프론트엔드 의존성 설치
+# Install frontend dependencies
 cd frontend && npm install && cd ..
 
-# 개발 모드 실행 (프론트엔드 핫리로드)
-# 터미널 1
+# Development mode (frontend hot-reload)
+# Terminal 1
 cd frontend && npm run dev
-# 터미널 2
+# Terminal 2
 VRT_DEV=1 vrt
 
-# 테스트
+# Run tests
 pytest tests/ -v
 
-# 프로덕션 빌드 후 실행
+# Build and run production
 make run
 ```
 
-### 앱 빌드 (PyInstaller)
+### Build App (PyInstaller)
 
 ```bash
 make build-app-macos    # → build/dist/VRT.app
 ```
 
-Windows 빌드는 GitHub Actions에서 자동 실행됩니다 (태그 push 시).
+Windows builds run automatically via GitHub Actions (on tag push).
 
 ---
 
-## 기술 스택 / Tech Stack
+## Tech Stack
 
-| 영역 | 기술 |
-|------|------|
+| Area | Technology |
+|------|------------|
 | Backend | Python, Flask, pywebview |
 | Frontend | React, TypeScript, Tailwind CSS v4 |
-| 전사 | Soniox (화자 분리) |
-| 번역 | OpenAI GPT-4.1 (Structured Output) |
-| 패키징 | PyInstaller, GitHub Actions |
+| Transcription | Soniox (speaker diarization) |
+| Translation | OpenAI GPT-4.1 (Structured Output) |
+| Packaging | PyInstaller, GitHub Actions |
