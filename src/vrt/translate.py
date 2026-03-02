@@ -195,6 +195,9 @@ def _call_api_chunk(
         f"- Correct transcription errors based on context.\n"
         f"- corrected: the corrected source text (preserve the original language).\n"
         f"- translated: the translation in {target_name}.\n"
+        f"- If a segment is already in {target_name}, still write a carefully "
+        f"corrected and contextually natural version in 'translated' — "
+        f"do not simply copy the corrected field.\n"
         f"- summary: 이전 누적 요약(있다면)과 이번 청크 내용을 합쳐 전체 대화의 누적 요약을 작성. "
         f"고유명사(이름, 회사명, 지역명)와 주요 주제를 반드시 포함. 2~5문장.\n"
     )

@@ -283,6 +283,26 @@ def test_speaker_preserved_two_speakers():
     assert result[1].speaker == "2"
 
 
+def test_same_language_prompt_instructs_independent_correction():
+    """타겟 언어와 소스 언어가 동일할 때 system_prompt에
+    'do not simply copy the corrected field' 지시가 포함되는지 확인."""
+    segs = _segments("안녕하세요.", "잘 지내세요?")
+
+    with patch("vrt.translate.OpenAI") as mock_openai:
+        client = MagicMock()
+        mock_openai.return_value = client
+        client.responses.parse.return_value = _chunk_resp(
+            "인사 나눔",
+            _seg(0, "안녕하세요.", "안녕하세요."),
+            _seg(1, "잘 지내세요?", "잘 지내세요?"),
+        )
+        translate(segs, "ko", "sk-fake")
+
+    call_args = client.responses.parse.call_args
+    system_content = call_args.kwargs["input"][0]["content"]
+    assert "do not simply copy the corrected field" in system_content
+
+
 def test_speaker_none_when_segment_speaker_is_none():
     """speaker=None 세그먼트 → TranslatedSegment.speaker도 None."""
     segs = [Segment(start=0.0, end=1.0, text="hello", speaker=None)]
