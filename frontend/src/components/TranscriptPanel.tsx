@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Pencil } from 'lucide-react';
 import { getSpeakerColor } from '@/constants/speakerColors';
 import type { Segment } from '@/types/session';
@@ -37,6 +37,8 @@ export function TranscriptPanel({
   const t = useT();
   const containerRef = useRef<HTMLDivElement>(null);
   const segmentRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const prevShowOriginal = useRef(showOriginal);
+  const scrollAnchorIdx = useRef(-1);
   const [editingSpeakerIdx, setEditingSpeakerIdx] = useState<number | null>(null);
   const [editingSegIdx, setEditingSegIdx] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -70,6 +72,29 @@ export function TranscriptPanel({
       setEditingSegIdx(null);
     }
   }, [isEditing]);
+
+  useLayoutEffect(() => {
+    if (scrollAnchorIdx.current < 0) return;
+    segmentRefs.current[scrollAnchorIdx.current]?.scrollIntoView({ block: 'center' });
+    scrollAnchorIdx.current = -1;
+  });
+
+  if (prevShowOriginal.current !== showOriginal) {
+    if (!isFollowing) {
+      const container = containerRef.current;
+      if (container) {
+        const centerY = container.getBoundingClientRect().top + container.clientHeight / 2;
+        let minDist = Infinity;
+        segmentRefs.current.forEach((el, i) => {
+          if (!el) return;
+          const rect = el.getBoundingClientRect();
+          const dist = Math.abs(rect.top + rect.height / 2 - centerY);
+          if (dist < minDist) { minDist = dist; scrollAnchorIdx.current = i; }
+        });
+      }
+    }
+    prevShowOriginal.current = showOriginal;
+  }
 
   if (segments.length === 0) {
     return (

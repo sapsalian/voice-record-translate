@@ -30,7 +30,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, Props>(({ src, onTimeUp
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [speed, setSpeed] = useState(1);
-  const [isSeeking, setIsSeeking] = useState(false);
+  const isSeekingRef = useRef(false);
   const seekValueRef = useRef(0);
 
   useImperativeHandle(ref, () => ({
@@ -49,7 +49,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, Props>(({ src, onTimeUp
     const onEnded = () => setPlaying(false);
     const onLoaded = () => setDuration(audio.duration || 0);
     const onTime = () => {
-      if (!isSeeking) {
+      if (!isSeekingRef.current) {
         setCurrentTime(audio.currentTime);
         onTimeUpdate?.(audio.currentTime);
       }
@@ -67,7 +67,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, Props>(({ src, onTimeUp
       audio.removeEventListener('loadedmetadata', onLoaded);
       audio.removeEventListener('timeupdate', onTime);
     };
-  }, [isSeeking, onTimeUpdate]);
+  }, [onTimeUpdate]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -110,7 +110,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, Props>(({ src, onTimeUp
   };
 
   const handleSeekMouseDown = () => {
-    setIsSeeking(true);
+    isSeekingRef.current = true;
   };
 
   const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -122,7 +122,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, Props>(({ src, onTimeUp
   const handleSeekMouseUp = () => {
     const audio = audioRef.current;
     if (audio) audio.currentTime = seekValueRef.current;
-    setIsSeeking(false);
+    isSeekingRef.current = false;
   };
 
   return (

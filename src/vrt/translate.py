@@ -38,9 +38,10 @@ CONTEXT_PAIRS = 10
 class TranslatedSegment:
     start: float
     end: float
-    original: str
+    original: str      # Soniox 원본
     translated: str
     speaker: str | None = None
+    corrected: str = ""  # GPT 교정 결과 (임시 보존용)
 
 
 @dataclass
@@ -107,9 +108,10 @@ def translate(
         TranslatedSegment(
             start=segments[i].start,
             end=segments[i].end,
-            original=seg.corrected,
+            original=segments[i].text,
             translated=seg.translated,
             speaker=segments[i].speaker,
+            corrected=seg.corrected,
         )
         for i, seg in enumerate(all_corrected)
     ]

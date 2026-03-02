@@ -152,6 +152,7 @@ class ProcessingWorker:
                     "end": s.end,
                     "speaker": s.speaker,
                     "original": s.original,
+                    "corrected": s.corrected,
                     "translated": s.translated,
                 }
                 for s in translated
