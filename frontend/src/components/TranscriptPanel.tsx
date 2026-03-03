@@ -80,7 +80,9 @@ export function TranscriptPanel({
   });
 
   if (prevShowOriginal.current !== showOriginal) {
-    if (!isFollowing) {
+    if (isFollowing && currentIdx >= 0) {
+      scrollAnchorIdx.current = currentIdx;
+    } else if (!isFollowing) {
       const container = containerRef.current;
       if (container) {
         const centerY = container.getBoundingClientRect().top + container.clientHeight / 2;

@@ -109,7 +109,18 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, Props>(({ src, onTimeUp
     audio.currentTime = Math.max(0, Math.min(duration, audio.currentTime + delta));
   };
 
-  const handleSeekMouseDown = () => {
+  useEffect(() => {
+    const handlePointerUp = () => {
+      if (!isSeekingRef.current) return;
+      const audio = audioRef.current;
+      if (audio) audio.currentTime = seekValueRef.current;
+      isSeekingRef.current = false;
+    };
+    document.addEventListener('pointerup', handlePointerUp);
+    return () => document.removeEventListener('pointerup', handlePointerUp);
+  }, []);
+
+  const handleSeekPointerDown = () => {
     isSeekingRef.current = true;
   };
 
@@ -117,12 +128,6 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, Props>(({ src, onTimeUp
     const val = Number(e.target.value);
     seekValueRef.current = val;
     setCurrentTime(val);
-  };
-
-  const handleSeekMouseUp = () => {
-    const audio = audioRef.current;
-    if (audio) audio.currentTime = seekValueRef.current;
-    isSeekingRef.current = false;
   };
 
   return (
@@ -169,9 +174,8 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, Props>(({ src, onTimeUp
           max={duration || 1}
           step={0.1}
           value={currentTime}
-          onMouseDown={handleSeekMouseDown}
+          onPointerDown={handleSeekPointerDown}
           onChange={handleSeekChange}
-          onMouseUp={handleSeekMouseUp}
         />
 
         <span className="text-xs text-muted-foreground tabular-nums shrink-0">
