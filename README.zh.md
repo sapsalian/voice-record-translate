@@ -59,6 +59,17 @@
 
 > **注意费用**: 转录 (Soniox) 与翻译 (OpenAI GPT-4.1) 均使用付费 API。
 > 配置保存于 `~/.vrt/config.json`。
+>
+> **预估费用 — 1小时音频** (约130词/分钟，发话率80%):
+>
+> | 服务 | 预估费用 |
+> |------|----------|
+> | Soniox 转录 | ~$0.10 |
+> | OpenAI GPT-4.1 翻译 | ~$0.25 |
+> | **合计** | **~$0.35** |
+>
+> *实际费用因发话密度、语言组合及当前 API 价格而异。*
+> 查看当前价格: [Soniox](https://soniox.com/pricing/) · [OpenAI](https://platform.openai.com/docs/pricing)
 
 ---
 

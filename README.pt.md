@@ -59,6 +59,17 @@ Insira suas chaves de API na tela de configurações na primeira execução.
 
 > **Atenção ao custo**: Tanto a transcrição (Soniox) quanto a tradução (OpenAI GPT-4.1) utilizam APIs pagas.
 > As configurações são salvas em `~/.vrt/config.json`.
+>
+> **Custo estimado — 1 hora de áudio** (aprox. 130 palavras/min, taxa de fala de 80%):
+>
+> | Serviço | Custo estimado |
+> |---------|----------------|
+> | Transcrição Soniox | ~$0.10 |
+> | Tradução OpenAI GPT-4.1 | ~$0.25 |
+> | **Total** | **~$0.35** |
+>
+> *Os custos reais variam conforme a densidade de fala, o par de idiomas e os preços atuais da API.*
+> Verificar preços atuais: [Soniox](https://soniox.com/pricing/) · [OpenAI](https://platform.openai.com/docs/pricing)
 
 ---
 

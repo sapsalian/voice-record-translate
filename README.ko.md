@@ -73,6 +73,17 @@
 
 > **과금 주의**: 전사(Soniox)와 번역(OpenAI GPT-4.1) 모두 유료 API입니다.
 > 설정은 `~/.vrt/config.json`에 저장됩니다.
+>
+> **예상 비용 — 1시간 오디오 기준** (약 130단어/분, 발화율 80% 가정):
+>
+> | 서비스 | 예상 비용 |
+> |--------|-----------|
+> | Soniox 전사 | ~$0.10 |
+> | OpenAI GPT-4.1 번역 | ~$0.25 |
+> | **합계** | **~$0.35** |
+>
+> *실제 비용은 발화 밀도, 언어 조합, 현재 API 가격에 따라 달라질 수 있습니다.*
+> 현재 가격 확인: [Soniox](https://soniox.com/pricing/) · [OpenAI](https://platform.openai.com/docs/pricing)
 
 ---
 
