@@ -5,6 +5,8 @@ import tempfile
 
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
+from openai import OpenAI
+from soniox.client import SonioxClient
 
 from .config import load_config, save_config
 from .pipeline import ProcessingWorker, start_processing
@@ -142,6 +144,37 @@ def get_audio(session_id: str):
     if not audio_path.exists():
         return jsonify({"error": "Audio not found"}), 404
     return send_file(str(audio_path), conditional=True)
+
+
+@app.post("/api/validate-keys")
+def validate_keys():
+    data = request.get_json() or {}
+    openai_key = data.get("openai_api_key", "")
+    soniox_key = data.get("soniox_api_key", "")
+    return jsonify({
+        "openai": _validate_openai(openai_key),
+        "soniox": _validate_soniox(soniox_key),
+    })
+
+
+def _validate_openai(key: str) -> bool:
+    if not key:
+        return False
+    try:
+        OpenAI(api_key=key).models.list()
+        return True
+    except Exception:
+        return False
+
+
+def _validate_soniox(key: str) -> bool:
+    if not key:
+        return False
+    try:
+        SonioxClient(api_key=key).stt.list()
+        return True
+    except Exception:
+        return False
 
 
 @app.get("/api/config")

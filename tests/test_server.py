@@ -139,6 +139,55 @@ def test_get_config(client):
     assert data["target_lang"] == "ko"
 
 
+# ── POST /api/validate-keys ───────────────────────────────────────────────
+
+
+def test_validate_keys_both_valid(client):
+    with patch("vrt.server._validate_openai", return_value=True), \
+         patch("vrt.server._validate_soniox", return_value=True):
+        resp = client.post("/api/validate-keys", json={
+            "openai_api_key": "sk-valid", "soniox_api_key": "soniox-valid"
+        })
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["openai"] is True
+    assert data["soniox"] is True
+
+
+def test_validate_keys_openai_invalid(client):
+    with patch("vrt.server._validate_openai", return_value=False), \
+         patch("vrt.server._validate_soniox", return_value=True):
+        resp = client.post("/api/validate-keys", json={
+            "openai_api_key": "bad", "soniox_api_key": "soniox-valid"
+        })
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["openai"] is False
+    assert data["soniox"] is True
+
+
+def test_validate_keys_both_invalid(client):
+    with patch("vrt.server._validate_openai", return_value=False), \
+         patch("vrt.server._validate_soniox", return_value=False):
+        resp = client.post("/api/validate-keys", json={
+            "openai_api_key": "", "soniox_api_key": ""
+        })
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["openai"] is False
+    assert data["soniox"] is False
+
+
+def test_validate_keys_empty_body(client):
+    with patch("vrt.server._validate_openai", return_value=False), \
+         patch("vrt.server._validate_soniox", return_value=False):
+        resp = client.post("/api/validate-keys", json={})
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["openai"] is False
+    assert data["soniox"] is False
+
+
 # ── PATCH /api/config ─────────────────────────────────────────────────────
 
 

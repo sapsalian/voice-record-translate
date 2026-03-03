@@ -4,6 +4,7 @@ import { Download, Pencil } from 'lucide-react';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import type { AudioPlayerHandle } from '@/components/AudioPlayer';
 import { TranscriptPanel } from '@/components/TranscriptPanel';
+import { WalkthroughOverlay, type WalkthroughStep } from '@/components/WalkthroughOverlay';
 import { fetchSession, updateSession } from '@/api/client';
 import { API_BASE } from '@/api/client';
 import type { Session } from '@/types/session';
@@ -42,11 +43,16 @@ export function ViewerPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [showWalkthrough, setShowWalkthrough] = useState(false);
 
   const audioRef = useRef<AudioPlayerHandle>(null);
   const currentTimeRef = useRef(0);
   const currentIdxRef = useRef(-1);
   const exportRef = useRef<HTMLDivElement>(null);
+  const audioPlayerWrapRef = useRef<HTMLDivElement>(null);
+  const showOriginalRef = useRef<HTMLButtonElement>(null);
+  const transcriptRef = useRef<HTMLDivElement>(null);
+  const exportButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
 
@@ -62,6 +68,16 @@ export function ViewerPage() {
       })
       .catch(() => setNotFound(true));
   }, [sessionId]);
+
+  // Auto-start viewer walkthrough when session is completed for the first time
+  useEffect(() => {
+    if (!session || session.status !== 'completed') return;
+    if (localStorage.getItem('viewerWalkthroughNeeded')) {
+      localStorage.removeItem('viewerWalkthroughNeeded');
+      const timer = setTimeout(() => setShowWalkthrough(true), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [session]);
 
   // Update currentIdxRef whenever session or currentTime changes
   useEffect(() => {
@@ -199,6 +215,33 @@ export function ViewerPage() {
     parallel: t('export_parallel'),
   };
 
+  const walkthroughSteps: WalkthroughStep[] = [
+    {
+      targetRef: audioPlayerWrapRef,
+      title: t('wt_seekbar_title'),
+      description: t('wt_seekbar_desc'),
+      placement: 'bottom',
+    },
+    {
+      targetRef: showOriginalRef,
+      title: t('wt_original_title'),
+      description: t('wt_original_desc'),
+      placement: 'bottom',
+    },
+    {
+      targetRef: transcriptRef,
+      title: t('wt_speaker_title'),
+      description: t('wt_speaker_desc'),
+      placement: 'top',
+    },
+    {
+      targetRef: exportButtonRef,
+      title: t('wt_export_title'),
+      description: t('wt_export_desc'),
+      placement: 'left',
+    },
+  ];
+
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
       {/* Header */}
@@ -212,6 +255,7 @@ export function ViewerPage() {
         <h1 className="font-semibold truncate flex-1">{session.title}</h1>
         <div className="flex items-center gap-2 shrink-0">
           <button
+            ref={showOriginalRef}
             onClick={() => setShowOriginal(v => !v)}
             className={`text-xs px-2 py-1 rounded ${showOriginal ? 'bg-accent text-foreground' : 'text-muted-foreground'}`}
           >
@@ -225,6 +269,7 @@ export function ViewerPage() {
           </button>
           <div ref={exportRef} className="relative">
             <button
+              ref={exportButtonRef}
               onClick={() => setShowExport(v => !v)}
               className="p-1 text-muted-foreground hover:text-foreground"
             >
@@ -244,16 +289,23 @@ export function ViewerPage() {
               </div>
             )}
           </div>
+          <button
+            onClick={() => setShowWalkthrough(true)}
+            className="p-1 text-muted-foreground hover:text-foreground text-sm"
+            aria-label="Help"
+          >
+            ?
+          </button>
         </div>
       </header>
 
       {/* Audio Player */}
-      <div className="shrink-0">
+      <div ref={audioPlayerWrapRef} className="shrink-0">
         <AudioPlayer ref={audioRef} src={audioSrc} onTimeUpdate={setCurrentTime} />
       </div>
 
       {/* Transcript with follow button */}
-      <div className="relative flex-1 min-h-0 flex flex-col">
+      <div ref={transcriptRef} className="relative flex-1 min-h-0 flex flex-col">
         <TranscriptPanel
           segments={session.segments}
           speakerNames={session.speaker_names}
@@ -277,6 +329,14 @@ export function ViewerPage() {
           </button>
         )}
       </div>
+
+      {/* Walkthrough */}
+      {showWalkthrough && (
+        <WalkthroughOverlay
+          steps={walkthroughSteps}
+          onDone={() => setShowWalkthrough(false)}
+        />
+      )}
     </div>
   );
 }

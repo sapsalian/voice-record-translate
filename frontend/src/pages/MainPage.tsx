@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { SessionList } from '@/components/SessionList';
 import { AddFilesModal } from '@/components/AddFilesModal';
+import { WalkthroughOverlay, type WalkthroughStep } from '@/components/WalkthroughOverlay';
 import {
   deleteSession,
   fetchSessions,
@@ -38,7 +39,10 @@ export function MainPage({ sessions, setSessions, onSettingsOpen }: Props) {
   const t = useT();
   const [isDragOver, setIsDragOver] = useState(false);
   const [modalData, setModalData] = useState<ModalData | null>(null);
+  const [showWalkthrough, setShowWalkthrough] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const addFileButtonRef = useRef<HTMLButtonElement>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
 
   // 스크롤 위치 보존: 마운트 시 복원, 언마운트 시 저장
   useEffect(() => {
@@ -47,6 +51,14 @@ export function MainPage({ sessions, setSessions, onSettingsOpen }: Props) {
     return () => {
       sessionStorage.setItem('mainScrollY', String(window.scrollY));
     };
+  }, []);
+
+  // Auto-start walkthrough after onboarding
+  useEffect(() => {
+    if (localStorage.getItem('mainWalkthroughNeeded')) {
+      localStorage.removeItem('mainWalkthroughNeeded');
+      setShowWalkthrough(true);
+    }
   }, []);
 
   // Drag-and-drop: use counter to handle enter/leave on child elements
@@ -135,13 +147,36 @@ export function MainPage({ sessions, setSessions, onSettingsOpen }: Props) {
     }
   };
 
+  const walkthroughSteps: WalkthroughStep[] = [
+    {
+      targetRef: addFileButtonRef,
+      title: t('wt_add_file_title'),
+      description: t('wt_add_file_desc'),
+      placement: 'bottom',
+    },
+    {
+      targetRef: settingsButtonRef,
+      title: t('wt_settings_title'),
+      description: t('wt_settings_desc'),
+      placement: 'bottom',
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b px-4 h-14 flex items-center justify-between">
         <h1 className="font-semibold text-lg">VRT</h1>
         <div className="flex gap-2">
-          <Button onClick={handleAddFile}>{t('add_file')}</Button>
-          <Button variant="ghost" size="icon" onClick={onSettingsOpen} aria-label={t('settings')}>
+          <Button ref={addFileButtonRef} onClick={handleAddFile}>{t('add_file')}</Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowWalkthrough(true)}
+            aria-label="Help"
+          >
+            ?
+          </Button>
+          <Button ref={settingsButtonRef} variant="ghost" size="icon" onClick={onSettingsOpen} aria-label={t('settings')}>
             ⚙
           </Button>
         </div>
@@ -174,6 +209,14 @@ export function MainPage({ sessions, setSessions, onSettingsOpen }: Props) {
           fileNames={modalData.fileNames}
           onClose={() => setModalData(null)}
           onConfirm={modalData.handle}
+        />
+      )}
+
+      {/* Walkthrough */}
+      {showWalkthrough && (
+        <WalkthroughOverlay
+          steps={walkthroughSteps}
+          onDone={() => setShowWalkthrough(false)}
         />
       )}
     </div>

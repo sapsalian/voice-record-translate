@@ -77,6 +77,18 @@ export async function updateSession(
   return resp.json();
 }
 
+export async function validateKeys(
+  openai_api_key: string,
+  soniox_api_key: string,
+): Promise<{ openai: boolean; soniox: boolean }> {
+  const resp = await fetch(`${API_BASE}/api/validate-keys`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ openai_api_key, soniox_api_key }),
+  });
+  return resp.json();
+}
+
 export async function fetchConfig(): Promise<Config> {
   const resp = await fetch(`${API_BASE}/api/config`);
   return resp.json();

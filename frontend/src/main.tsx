@@ -12,11 +12,17 @@ import { LocaleProvider } from './LocaleContext'
 function Root() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [uiLang, setUiLang] = useState('ko')
+  const [needsOnboarding, setNeedsOnboarding] = useState(false)
   const location = useLocation()
 
   useEffect(() => {
     fetchSessions().then(setSessions).catch(() => {})
-    fetchConfig().then((c) => setUiLang(c.ui_lang)).catch(() => {})
+    fetchConfig().then((c) => {
+      setUiLang(c.ui_lang)
+      if (!c.openai_api_key && !c.soniox_api_key) {
+        setNeedsOnboarding(true)
+      }
+    }).catch(() => {})
   }, [])
 
   return (
@@ -30,7 +36,9 @@ function Root() {
                 <App
                   sessions={sessions}
                   setSessions={setSessions}
-                  onUiLangChange={setUiLang}
+                  onUiLangChange={(lang) => { setUiLang(lang); setNeedsOnboarding(false); }}
+                  needsOnboarding={needsOnboarding}
+                  initialLang={uiLang}
                 />
               }
             />
