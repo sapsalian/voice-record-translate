@@ -43,6 +43,7 @@ export function MainPage({ sessions, setSessions, onSettingsOpen }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addFileButtonRef = useRef<HTMLButtonElement>(null);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
+  const sessionListRef = useRef<HTMLElement>(null);
 
   // 스크롤 위치 보존: 마운트 시 복원, 언마운트 시 저장
   useEffect(() => {
@@ -155,6 +156,12 @@ export function MainPage({ sessions, setSessions, onSettingsOpen }: Props) {
       placement: 'bottom',
     },
     {
+      targetRef: sessionListRef,
+      title: t('wt_list_title'),
+      description: t('wt_list_desc'),
+      placement: 'bottom',
+    },
+    {
       targetRef: settingsButtonRef,
       title: t('wt_settings_title'),
       description: t('wt_settings_desc'),
@@ -182,7 +189,7 @@ export function MainPage({ sessions, setSessions, onSettingsOpen }: Props) {
         </div>
       </header>
 
-      <main className="px-4 py-6">
+      <main ref={sessionListRef} className="px-4 py-6">
         <SessionList sessions={sessions} onUpdate={handleUpdate} onDelete={handleDelete} onView={handleViewSession} />
       </main>
 

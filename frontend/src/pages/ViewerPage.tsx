@@ -52,6 +52,7 @@ export function ViewerPage() {
   const audioPlayerWrapRef = useRef<HTMLDivElement>(null);
   const showOriginalRef = useRef<HTMLButtonElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
+  const editButtonRef = useRef<HTMLButtonElement>(null);
   const exportButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
@@ -230,9 +231,15 @@ export function ViewerPage() {
     },
     {
       targetRef: transcriptRef,
+      title: t('wt_segment_title'),
+      description: t('wt_segment_desc'),
+      placement: 'top',
+    },
+    {
+      targetRef: editButtonRef,
       title: t('wt_speaker_title'),
       description: t('wt_speaker_desc'),
-      placement: 'top',
+      placement: 'left',
     },
     {
       targetRef: exportButtonRef,
@@ -262,6 +269,7 @@ export function ViewerPage() {
             {t('original')}
           </button>
           <button
+            ref={editButtonRef}
             onClick={() => setIsEditing(v => !v)}
             className={`p-1 rounded ${isEditing ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           >
