@@ -1,5 +1,6 @@
 import os
 import threading
+import webbrowser
 
 from .server import app, find_free_port
 
@@ -21,6 +22,9 @@ def main() -> None:
     import webview
 
     class API:
+        def open_url(self, url: str) -> None:
+            webbrowser.open(url)
+
         def open_file_dialog(self) -> list[str] | None:
             result = webview.windows[0].create_file_dialog(
                 webview.FileDialog.OPEN,

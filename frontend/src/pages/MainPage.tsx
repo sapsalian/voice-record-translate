@@ -18,6 +18,7 @@ declare global {
     pywebview?: {
       api: {
         open_file_dialog(): Promise<string[] | null>;
+        open_url(url: string): void;
       };
     };
   }

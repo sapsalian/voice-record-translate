@@ -1,4 +1,12 @@
 import { useState } from 'react';
+
+function openUrl(url: string) {
+  if (window.pywebview?.api) {
+    window.pywebview.api.open_url(url);
+  } else {
+    window.open(url);
+  }
+}
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -102,7 +110,7 @@ export function OnboardingPage({ initialLang, onComplete }: Props) {
               )}
               <button
                 className="text-xs text-primary underline underline-offset-2"
-                onClick={() => window.open('https://platform.openai.com/api-keys')}
+                onClick={() => openUrl('https://platform.openai.com/api-keys')}
                 type="button"
               >
                 {t('onboarding_openai_link')}
@@ -123,7 +131,7 @@ export function OnboardingPage({ initialLang, onComplete }: Props) {
               )}
               <button
                 className="text-xs text-primary underline underline-offset-2"
-                onClick={() => window.open('https://console.soniox.com/api-keys')}
+                onClick={() => openUrl('https://console.soniox.com/api-keys')}
                 type="button"
               >
                 {t('onboarding_soniox_link')}
