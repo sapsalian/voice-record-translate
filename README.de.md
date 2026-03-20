@@ -4,6 +4,10 @@
 
 Lade eine Audiodatei hoch → Transkription mit Sprechertrennung → Übersetzung — alles in einer Desktop-App.
 
+![Main](docs/screenshots/main.png)
+![Processing](docs/screenshots/processing.png)
+![Viewer](docs/screenshots/viewer.png)
+
 ---
 
 ## Funktionen

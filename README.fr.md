@@ -4,6 +4,10 @@
 
 Importez un fichier audio → transcription avec identification des locuteurs → traduction — tout en une seule application de bureau.
 
+![Main](docs/screenshots/main.png)
+![Processing](docs/screenshots/processing.png)
+![Viewer](docs/screenshots/viewer.png)
+
 ---
 
 ## Fonctionnalités

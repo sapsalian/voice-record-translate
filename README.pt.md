@@ -4,6 +4,10 @@
 
 Faça upload de um arquivo de áudio → transcrição com separação de falantes → tradução — tudo em um aplicativo de desktop.
 
+![Main](docs/screenshots/main.png)
+![Processing](docs/screenshots/processing.png)
+![Viewer](docs/screenshots/viewer.png)
+
 ---
 
 ## Funcionalidades

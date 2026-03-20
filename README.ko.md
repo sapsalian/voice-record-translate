@@ -6,17 +6,9 @@
 
 ---
 
-<!-- 스크린샷 안내 (작성자 메모):
-  아래 3장을 캡처해서 추가 권장:
-  1. 메인 화면 — 세션 목록 + 새 파일 추가 버튼
-  2. 처리 중 화면 — 전사/번역 진행률 표시
-  3. 뷰어 화면 — 화자 구분된 원문 + 번역 병렬 표시
-  이미지 파일을 docs/screenshots/ 에 넣고 아래 주석을 해제하세요:
-
-  ![메인 화면](docs/screenshots/main.png)
-  ![처리 중](docs/screenshots/processing.png)
-  ![뷰어](docs/screenshots/viewer.png)
--->
+![메인 화면](docs/screenshots/main.png)
+![처리 중](docs/screenshots/processing.png)
+![뷰어](docs/screenshots/viewer.png)
 
 ---
 

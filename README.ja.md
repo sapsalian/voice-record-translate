@@ -4,6 +4,10 @@
 
 音声ファイルをアップロードするだけで、話者分離付き文字起こし＋翻訳まで自動処理するデスクトップアプリ。
 
+![Main](docs/screenshots/main.png)
+![Processing](docs/screenshots/processing.png)
+![Viewer](docs/screenshots/viewer.png)
+
 ---
 
 ## 主な機能

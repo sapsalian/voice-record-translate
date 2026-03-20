@@ -6,17 +6,9 @@ Upload an audio file → speaker-separated transcription → translated — all 
 
 ---
 
-<!-- Screenshot guide (author note):
-  Recommended: capture these 3 screenshots and add them:
-  1. Main screen — session list + add file button
-  2. Processing screen — transcription/translation progress
-  3. Viewer screen — speaker-separated original + translated side by side
-  Place images in docs/screenshots/ and uncomment below:
-
-  ![Main](docs/screenshots/main.png)
-  ![Processing](docs/screenshots/processing.png)
-  ![Viewer](docs/screenshots/viewer.png)
--->
+![Main](docs/screenshots/main.png)
+![Processing](docs/screenshots/processing.png)
+![Viewer](docs/screenshots/viewer.png)
 
 ---
 

@@ -4,6 +4,10 @@
 
 Sube un archivo de audio → transcripción con separación de hablantes → traducción — todo en una aplicación de escritorio.
 
+![Main](docs/screenshots/main.png)
+![Processing](docs/screenshots/processing.png)
+![Viewer](docs/screenshots/viewer.png)
+
 ---
 
 ## Características

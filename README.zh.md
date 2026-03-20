@@ -4,6 +4,10 @@
 
 上传音频文件，自动完成说话人分离转录与翻译的桌面应用。
 
+![Main](docs/screenshots/main.png)
+![Processing](docs/screenshots/processing.png)
+![Viewer](docs/screenshots/viewer.png)
+
 ---
 
 ## 主要功能
