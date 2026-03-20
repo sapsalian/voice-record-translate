@@ -8,9 +8,6 @@
 
 https://github.com/user-attachments/assets/2542f517-85cc-47de-b15a-1d8a623a66fe
 
-![메인 화면](docs/screenshots/main.png)
-![처리 중](docs/screenshots/processing.png)
-![뷰어](docs/screenshots/viewer.png)
 
 ---
 

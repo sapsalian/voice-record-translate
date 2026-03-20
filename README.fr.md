@@ -6,9 +6,6 @@ Importez un fichier audio â†’ transcription avec identification des locuteurs â†
 
 https://github.com/user-attachments/assets/2542f517-85cc-47de-b15a-1d8a623a66fe
 
-![Main](docs/screenshots/main.png)
-![Processing](docs/screenshots/processing.png)
-![Viewer](docs/screenshots/viewer.png)
 
 ---
 
