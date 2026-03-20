@@ -4,6 +4,8 @@
 
 音声ファイルをアップロードするだけで、話者分離付き文字起こし＋翻訳まで自動処理するデスクトップアプリ。
 
+https://github.com/user-attachments/assets/2542f517-85cc-47de-b15a-1d8a623a66fe
+
 ![Main](docs/screenshots/main.png)
 ![Processing](docs/screenshots/processing.png)
 ![Viewer](docs/screenshots/viewer.png)
