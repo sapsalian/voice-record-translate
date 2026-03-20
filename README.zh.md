@@ -4,7 +4,7 @@
 
 上传音频文件，自动完成说话人分离转录与翻译的桌面应用。
 
-https://github.com/user-attachments/assets/2542f517-85cc-47de-b15a-1d8a623a66fe
+https://github.com/user-attachments/assets/2995ecc1-a19c-4fa3-80d7-f3a459098943
 
 
 ---

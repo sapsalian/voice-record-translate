@@ -4,7 +4,7 @@
 
 Importez un fichier audio → transcription avec identification des locuteurs → traduction — tout en une seule application de bureau.
 
-https://github.com/user-attachments/assets/2542f517-85cc-47de-b15a-1d8a623a66fe
+https://github.com/user-attachments/assets/2995ecc1-a19c-4fa3-80d7-f3a459098943
 
 
 ---
