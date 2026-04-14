@@ -4,7 +4,7 @@ build-frontend:
 	cd frontend && npm run build && cp -r dist/* ../src/vrt/static/
 
 run: build-frontend
-	vrt
+	.venv/bin/vrt
 
 build-app-macos: build-frontend
 	cd build && ../.venv/bin/pyinstaller vrt-macos.spec
